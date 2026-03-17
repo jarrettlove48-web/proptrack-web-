@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Plus,
   Home,
+  X,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +26,12 @@ export default function DashboardPage() {
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Add property modal
+  const [showAddProperty, setShowAddProperty] = useState(false);
+  const [newPropName, setNewPropName] = useState("");
+  const [newPropAddress, setNewPropAddress] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const fetchData = useCallback(async () => {
     const {
       data: { user },
@@ -31,20 +39,9 @@ export default function DashboardPage() {
     if (!user) return;
 
     const [propRes, unitRes, reqRes] = await Promise.all([
-      supabase
-        .from("properties")
-        .select("*")
-        .eq("owner_id", user.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("units")
-        .select("*")
-        .eq("owner_id", user.id),
-      supabase
-        .from("maintenance_requests")
-        .select("*")
-        .eq("owner_id", user.id)
-        .order("created_at", { ascending: false }),
+      supabase.from("properties").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("units").select("*").eq("owner_id", user.id),
+      supabase.from("maintenance_requests").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
     ]);
 
     setProperties((propRes.data || []) as Property[]);
@@ -53,9 +50,38 @@ export default function DashboardPage() {
     setLoading(false);
   }, [supabase]);
 
-  useEffect(() => {
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleAddProperty(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPropName.trim()) return;
+    setSaving(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase.from("properties").insert({
+      owner_id: user.id,
+      name: newPropName.trim(),
+      address: newPropAddress.trim(),
+      unit_count: 0,
+    });
+
+    if (!error) {
+      await supabase.from("activities").insert({
+        owner_id: user.id,
+        type: "property_added",
+        title: "Property added",
+        subtitle: newPropName.trim(),
+      });
+    }
+
+    setNewPropName("");
+    setNewPropAddress("");
+    setShowAddProperty(false);
+    setSaving(false);
     fetchData();
-  }, [fetchData]);
+  }
 
   const openRequests = requests.filter((r) => r.status === "open");
   const inProgressRequests = requests.filter((r) => r.status === "in_progress");
@@ -71,7 +97,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>
           {profile?.name ? `Hey, ${profile.name.split(" ")[0]}` : "Dashboard"}
@@ -84,46 +109,17 @@ export default function DashboardPage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
-          {
-            label: "Properties",
-            value: properties.length,
-            icon: Building2,
-            color: "text-brand",
-            bg: "bg-brand-faint",
-          },
-          {
-            label: "Total units",
-            value: units.length,
-            icon: Home,
-            color: "text-brand",
-            bg: "bg-brand-faint",
-          },
-          {
-            label: "Open requests",
-            value: openRequests.length,
-            icon: AlertTriangle,
-            color: "text-danger",
-            bg: "bg-danger-light",
-          },
-          {
-            label: "Tenants",
-            value: occupiedUnits.length,
-            icon: Users,
-            color: "text-accent",
-            bg: "bg-accent-light",
-          },
+          { label: "Properties", value: properties.length, icon: Building2, color: "text-brand", bg: "bg-brand-faint" },
+          { label: "Total units", value: units.length, icon: Home, color: "text-brand", bg: "bg-brand-faint" },
+          { label: "Open requests", value: openRequests.length, icon: AlertTriangle, color: "text-danger", bg: "bg-danger-light" },
+          { label: "Tenants", value: occupiedUnits.length, icon: Users, color: "text-accent", bg: "bg-accent-light" },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white rounded-2xl p-4 border border-warm-300/50"
-          >
+          <div key={stat.label} className="bg-white rounded-2xl p-4 border border-warm-300/50">
             <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center mb-3`}>
               <stat.icon className={`w-[18px] h-[18px] ${stat.color}`} strokeWidth={1.8} />
             </div>
             <p className="text-2xl font-bold text-charcoal">{stat.value}</p>
-            <p className="text-xs text-charcoal-tertiary font-medium mt-0.5">
-              {stat.label}
-            </p>
+            <p className="text-xs text-charcoal-tertiary font-medium mt-0.5">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -133,8 +129,8 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-charcoal">Your properties</h2>
           <button
+            onClick={() => setShowAddProperty(true)}
             className="flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand-dark transition-colors"
-            onClick={() => {/* TODO: add property modal */}}
           >
             <Plus className="w-4 h-4" />
             Add property
@@ -147,19 +143,22 @@ export default function DashboardPage() {
               <Building2 className="w-6 h-6 text-brand" strokeWidth={1.6} />
             </div>
             <p className="font-medium text-charcoal mb-1">No properties yet</p>
-            <p className="text-sm text-charcoal-secondary">
+            <p className="text-sm text-charcoal-secondary mb-4">
               Add your first property to start tracking maintenance.
             </p>
+            <button
+              onClick={() => setShowAddProperty(true)}
+              className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add property
+            </button>
           </div>
         ) : (
           <div className="space-y-3">
             {properties.map((property) => {
-              const propertyUnits = units.filter(
-                (u) => u.property_id === property.id
-              );
-              const propertyRequests = openRequests.filter(
-                (r) => r.property_id === property.id
-              );
+              const propertyUnits = units.filter((u) => u.property_id === property.id);
+              const propertyRequests = openRequests.filter((r) => r.property_id === property.id);
               const occupied = propertyUnits.filter((u) => u.is_occupied).length;
 
               return (
@@ -170,31 +169,21 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-11 h-11 rounded-xl bg-brand-faint flex items-center justify-center">
-                      <Building2
-                        className="w-5 h-5 text-brand"
-                        strokeWidth={1.8}
-                      />
+                      <Building2 className="w-5 h-5 text-brand" strokeWidth={1.8} />
                     </div>
                     <div>
-                      <p className="font-semibold text-charcoal group-hover:text-brand transition-colors">
-                        {property.name}
-                      </p>
-                      <p className="text-sm text-charcoal-secondary">
-                        {property.address || "No address"}
-                      </p>
+                      <p className="font-semibold text-charcoal group-hover:text-brand transition-colors">{property.name}</p>
+                      <p className="text-sm text-charcoal-secondary">{property.address || "No address"}</p>
                       <div className="flex items-center gap-4 mt-1.5">
                         <span className="text-xs text-charcoal-tertiary flex items-center gap-1">
-                          <Home className="w-3 h-3" />
-                          {propertyUnits.length} unit{propertyUnits.length !== 1 ? "s" : ""}
+                          <Home className="w-3 h-3" />{propertyUnits.length} unit{propertyUnits.length !== 1 ? "s" : ""}
                         </span>
                         <span className="text-xs text-charcoal-tertiary flex items-center gap-1">
-                          <Users className="w-3 h-3" />
-                          {occupied} occupied
+                          <Users className="w-3 h-3" />{occupied} occupied
                         </span>
                         {propertyRequests.length > 0 && (
                           <span className="text-xs text-danger font-medium flex items-center gap-1">
-                            <Wrench className="w-3 h-3" />
-                            {propertyRequests.length} open
+                            <Wrench className="w-3 h-3" />{propertyRequests.length} open
                           </span>
                         )}
                       </div>
@@ -210,73 +199,95 @@ export default function DashboardPage() {
 
       {/* Recent open requests */}
       {openRequests.length > 0 && (
-        <div>
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-charcoal">
-              Open requests
-            </h2>
-            <Link
-              href="/dashboard/requests"
-              className="text-sm font-medium text-brand hover:text-brand-dark transition-colors"
-            >
-              View all →
-            </Link>
+            <h2 className="text-lg font-semibold text-charcoal">Open requests</h2>
+            <Link href="/dashboard/requests" className="text-sm font-medium text-brand hover:text-brand-dark transition-colors">View all →</Link>
           </div>
           <div className="space-y-2">
             {openRequests.slice(0, 5).map((req) => (
-              <div
-                key={req.id}
-                className="flex items-center justify-between bg-white rounded-xl border border-warm-300/50 px-4 py-3"
-              >
+              <div key={req.id} className="flex items-center justify-between bg-white rounded-xl border border-warm-300/50 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>
-                    {req.category}
-                  </span>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>{req.category}</span>
                   <div>
-                    <p className="text-sm font-medium text-charcoal">
-                      {req.description.slice(0, 60)}
-                      {req.description.length > 60 ? "..." : ""}
-                    </p>
-                    <p className="text-xs text-charcoal-tertiary mt-0.5">
-                      {req.property_name} · {req.unit_label}
-                    </p>
+                    <p className="text-sm font-medium text-charcoal">{req.description.slice(0, 60)}{req.description.length > 60 ? "..." : ""}</p>
+                    <p className="text-xs text-charcoal-tertiary mt-0.5">{req.property_name} · {req.unit_label}</p>
                   </div>
                 </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg status-open">
-                  Open
-                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg status-open">Open</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Quick actions for in-progress */}
       {inProgressRequests.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-charcoal mb-4">
-            In progress ({inProgressRequests.length})
-          </h2>
+        <div>
+          <h2 className="text-lg font-semibold text-charcoal mb-4">In progress ({inProgressRequests.length})</h2>
           <div className="space-y-2">
             {inProgressRequests.slice(0, 3).map((req) => (
-              <div
-                key={req.id}
-                className="flex items-center justify-between bg-white rounded-xl border border-warm-300/50 px-4 py-3"
-              >
+              <div key={req.id} className="flex items-center justify-between bg-white rounded-xl border border-warm-300/50 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-charcoal">
-                    {req.description.slice(0, 60)}
-                    {req.description.length > 60 ? "..." : ""}
-                  </p>
-                  <p className="text-xs text-charcoal-tertiary mt-0.5">
-                    {req.property_name} · {req.unit_label}
-                  </p>
+                  <p className="text-sm font-medium text-charcoal">{req.description.slice(0, 60)}{req.description.length > 60 ? "..." : ""}</p>
+                  <p className="text-xs text-charcoal-tertiary mt-0.5">{req.property_name} · {req.unit_label}</p>
                 </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg status-in_progress">
-                  In Progress
-                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg status-in_progress">In Progress</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add Property Modal */}
+      {showAddProperty && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-charcoal">Add property</h3>
+              <button onClick={() => setShowAddProperty(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddProperty} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Property name</label>
+                <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
+                  <Building2 className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
+                  <input
+                    type="text"
+                    placeholder="e.g. Oak Street Duplex"
+                    value={newPropName}
+                    onChange={(e) => setNewPropName(e.target.value)}
+                    required
+                    className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Address (optional)</label>
+                <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
+                  <MapPin className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
+                  <input
+                    type="text"
+                    placeholder="123 Main St, City, State"
+                    value={newPropAddress}
+                    onChange={(e) => setNewPropAddress(e.target.value)}
+                    className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || !newPropName.trim()}
+                className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60"
+              >
+                {saving ? "Adding..." : "Add property"}
+              </button>
+            </form>
           </div>
         </div>
       )}
