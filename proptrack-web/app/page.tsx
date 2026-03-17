@@ -1,13 +1,76 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
+import GoogleSignIn from "./GoogleSignIn";
 import {
   Building2,
   Wrench,
   MessageCircle,
   Shield,
   ArrowRight,
+  Check,
 } from "lucide-react";
+
+const STRIPE_ESSENTIAL =
+  "https://checkout.stripe.com/c/pay/cs_live_b1AHg4Pv6dxfzUzqQ9KPsREMOa1LfTrocOvqaLQr4yRzWNXs1PPUUG6QQ2#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSd2cGd2ZndsdXFsamtQa2x0cGBrYHZ2QGtkZ2lgYSc%2FY2RpdmApJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRWb3dSdEJjdk5ndnZGXzE2fFc1dnZ3YU9CTjVKcHRsQEhOa21MPWsxS2NCVnxGaVdccVUyMVJDcUpCVG5gY0tiXX1saHJXZl9ndEBkMj1TMF19al9dTU01NXdrUjNjV0pjJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJjVmPTcyMycpJ2lkfGpwcVF8dWAnPydocGlxbFpscWBoJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl";
+
+const STRIPE_PRO =
+  "https://checkout.stripe.com/c/pay/cs_live_b11PEdb0Es6vjZ3CgKhMoUik3fyHyg4k7RbZgXDLpzE1VFyc80iBwZdxWa#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSd2cGd2ZndsdXFsamtQa2x0cGBrYHZ2QGtkZ2lgYSc%2FY2RpdmApJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRWb3dSdEJjdk5ndnZGXzE2fFc1dnZ3YU9CTjVKcHRsQEhOa21MPWsxS2NCVnxGaVdccVUyMVJDcUpCVG5gY0tiXX1saHJXZl9ndEBkMj1TMF19al9dTU01NXdrUjNjV0pjJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJjVmPTcyMycpJ2lkfGpwcVF8dWAnPydocGlxbFpscWBoJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl";
+
+const plans = [
+  {
+    name: "Starter",
+    price: "Free",
+    period: "",
+    units: "1 property · 1 unit",
+    cta: "Get started free",
+    href: "/auth?mode=signup",
+    external: false,
+    featured: false,
+    features: [
+      "Maintenance requests",
+      "Tenant portal & invites",
+      "In-app messaging",
+      "Request status tracking",
+    ],
+  },
+  {
+    name: "Essential",
+    price: "$9",
+    period: "/mo",
+    units: "Up to 3 properties · 9 units",
+    cta: "Start Essential",
+    href: STRIPE_ESSENTIAL,
+    external: true,
+    featured: true,
+    features: [
+      "Everything in Starter",
+      "Expense tracking",
+      "Activity log",
+      "Email notifications",
+      "Category & vendor tagging",
+      "Priority support",
+    ],
+  },
+  {
+    name: "Pro",
+    price: "$19",
+    period: "/mo",
+    units: "Up to 10 properties · unlimited units",
+    cta: "Start Pro",
+    href: STRIPE_PRO,
+    external: true,
+    featured: false,
+    features: [
+      "Everything in Essential",
+      "Recurring expenses",
+      "Data export (CSV)",
+      "Custom categories",
+      "Multi-property dashboard",
+      "Phone & email support",
+    ],
+  },
+];
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -47,10 +110,14 @@ export default async function HomePage() {
         <div className="flex items-center gap-3">
           <Link
             href="/invite"
-            className="text-sm font-medium text-charcoal-secondary hover:text-charcoal transition-colors px-4 py-2"
+            className="text-sm font-medium text-charcoal-secondary hover:text-charcoal transition-colors px-4 py-2 hidden sm:inline-block"
           >
             I&apos;m a tenant
           </Link>
+          <GoogleSignIn
+            label="Sign in with Google"
+            className="hidden md:inline-flex items-center gap-2.5 text-sm font-medium text-charcoal bg-white hover:bg-warm-100 border border-warm-300 px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
+          />
           <Link
             href="/auth"
             className="text-sm font-semibold text-white bg-brand hover:bg-brand-dark px-5 py-2.5 rounded-xl transition-colors"
@@ -80,19 +147,17 @@ export default async function HomePage() {
             property. No spreadsheets. No text chains. No empire required.
           </p>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <GoogleSignIn
+              label="Sign up with Google"
+              className="inline-flex items-center gap-3 bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-colors cursor-pointer"
+            />
             <Link
               href="/auth?mode=signup"
-              className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-colors"
-            >
-              Get started free
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/invite"
               className="inline-flex items-center gap-2 bg-white hover:bg-warm-100 text-charcoal font-medium px-8 py-3.5 rounded-xl text-base transition-colors border border-warm-300"
             >
-              Tenant portal
+              Sign up with email
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
@@ -142,53 +207,79 @@ export default async function HomePage() {
           >
             Simple pricing
           </h2>
-          <p className="text-charcoal-secondary mb-10">
+          <p className="text-charcoal-secondary mb-12">
             Start free. Upgrade when you grow.
           </p>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-            {[
-              { name: "Starter", price: "Free", units: "1 unit", cta: "Get started" },
-              { name: "Essential", price: "$9/mo", units: "Up to 3 units", cta: "Start trial", featured: true },
-              { name: "Pro", price: "$19/mo", units: "Up to 10 units", cta: "Start trial" },
-            ].map((plan) => (
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`rounded-2xl p-6 border text-left ${
+                className={`rounded-2xl p-6 border text-left flex flex-col ${
                   plan.featured
                     ? "bg-white border-brand border-2 ring-4 ring-brand/10"
                     : "bg-white border-warm-300/60"
                 }`}
               >
                 {plan.featured && (
-                  <span className="text-xs font-semibold bg-brand-faint text-brand-dark px-3 py-1 rounded-full">
+                  <span className="text-xs font-semibold bg-brand-faint text-brand-dark px-3 py-1 rounded-full self-start">
                     Most popular
                   </span>
                 )}
-                <div className="mt-3">
+                <div className={plan.featured ? "mt-3" : ""}>
                   <p className="text-sm font-medium text-charcoal-secondary">
                     {plan.name}
                   </p>
-                  <p
-                    className="text-3xl font-bold text-charcoal mt-1"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    {plan.price}
-                  </p>
+                  <div className="flex items-baseline gap-0.5 mt-1">
+                    <p
+                      className="text-3xl font-bold text-charcoal"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {plan.price}
+                    </p>
+                    {plan.period && (
+                      <span className="text-sm text-charcoal-tertiary">{plan.period}</span>
+                    )}
+                  </div>
                   <p className="text-sm text-charcoal-tertiary mt-1">
                     {plan.units}
                   </p>
                 </div>
-                <Link
-                  href="/auth?mode=signup"
-                  className={`block text-center text-sm font-semibold mt-6 py-2.5 rounded-xl transition-colors ${
-                    plan.featured
-                      ? "bg-brand text-white hover:bg-brand-dark"
-                      : "bg-warm-100 text-charcoal hover:bg-warm-200"
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+
+                <ul className="mt-6 space-y-3 flex-1">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-charcoal">
+                      <Check className="w-4 h-4 text-brand shrink-0 mt-0.5" strokeWidth={2.5} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                {plan.external ? (
+                  <a
+                    href={plan.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block text-center text-sm font-semibold mt-6 py-2.5 rounded-xl transition-colors ${
+                      plan.featured
+                        ? "bg-brand text-white hover:bg-brand-dark"
+                        : "bg-warm-100 text-charcoal hover:bg-warm-200"
+                    }`}
+                  >
+                    {plan.cta}
+                  </a>
+                ) : (
+                  <Link
+                    href={plan.href}
+                    className={`block text-center text-sm font-semibold mt-6 py-2.5 rounded-xl transition-colors ${
+                      plan.featured
+                        ? "bg-brand text-white hover:bg-brand-dark"
+                        : "bg-warm-100 text-charcoal hover:bg-warm-200"
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
