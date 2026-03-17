@@ -2,78 +2,109 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
-import type { MaintenanceRequest, RequestStatus } from "@/lib/types";
+import type { MaintenanceRequest, RequestStatus, RequestCategory, Property, Unit } from "@/lib/types";
 import { STATUS_LABELS, CATEGORY_LABELS } from "@/lib/types";
-import { Wrench, Filter } from "lucide-react";
+import { Wrench, Filter, Plus, X, Building2 } from "lucide-react";
+
+const CATEGORIES: { key: RequestCategory; label: string }[] = [
+  { key: "plumbing", label: "Plumbing" },
+  { key: "electrical", label: "Electrical" },
+  { key: "hvac", label: "HVAC" },
+  { key: "appliance", label: "Appliance" },
+  { key: "other", label: "Other" },
+];
 
 export default function RequestsPage() {
   const supabase = createClient();
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
 
-  const fetchRequests = useCallback(async () => {
+  // Add request modal
+  const [showAdd, setShowAdd] = useState(false);
+  const [reqPropertyId, setReqPropertyId] = useState("");
+  const [reqUnitId, setReqUnitId] = useState("");
+  const [reqCategory, setReqCategory] = useState<RequestCategory>("plumbing");
+  const [reqDescription, setReqDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const [reqRes, propRes, unitRes] = await Promise.all([
+      supabase.from("maintenance_requests").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("properties").select("*").eq("owner_id", user.id).order("name"),
+      supabase.from("units").select("*").eq("owner_id", user.id).order("label"),
+    ]);
+    setRequests((reqRes.data || []) as MaintenanceRequest[]);
+    setProperties((propRes.data || []) as Property[]);
+    setUnits((unitRes.data || []) as Unit[]);
+    if (propRes.data?.length && !reqPropertyId) setReqPropertyId(propRes.data[0].id);
+    setLoading(false);
+  }, [supabase, reqPropertyId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filteredUnits = units.filter((u) => u.property_id === reqPropertyId);
+
+  async function handleAddRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reqDescription.trim() || !reqPropertyId || !reqUnitId) return;
+    setSaving(true);
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
-      .from("maintenance_requests")
-      .select("*")
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: false });
+    const prop = properties.find((p) => p.id === reqPropertyId);
+    const unit = units.find((u) => u.id === reqUnitId);
 
-    setRequests((data || []) as MaintenanceRequest[]);
-    setLoading(false);
-  }, [supabase]);
+    await supabase.from("maintenance_requests").insert({
+      unit_id: reqUnitId,
+      property_id: reqPropertyId,
+      owner_id: user.id,
+      category: reqCategory,
+      description: reqDescription.trim(),
+      status: "open",
+      tenant_name: unit?.tenant_name || "",
+      unit_label: unit?.label || "",
+      property_name: prop?.name || "",
+    });
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
-
-  async function updateStatus(id: string, status: RequestStatus) {
-    await supabase
-      .from("maintenance_requests")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    fetchRequests();
+    setReqDescription(""); setReqCategory("plumbing");
+    setShowAdd(false); setSaving(false);
+    fetchData();
   }
 
-  const filtered = statusFilter === "all"
-    ? requests
-    : requests.filter((r) => r.status === statusFilter);
+  async function updateStatus(id: string, status: RequestStatus) {
+    await supabase.from("maintenance_requests").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    fetchData();
+  }
+
+  const filtered = statusFilter === "all" ? requests : requests.filter((r) => r.status === statusFilter);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-7 h-7 border-3 border-brand/20 border-t-brand rounded-full animate-spin" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-20"><div className="w-7 h-7 border-3 border-brand/20 border-t-brand rounded-full animate-spin" /></div>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>
-            Requests
-          </h1>
-          <p className="text-sm text-charcoal-secondary mt-1">
-            {requests.length} total · {requests.filter((r) => r.status === "open").length} open
-          </p>
+          <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>Requests</h1>
+          <p className="text-sm text-charcoal-secondary mt-1">{requests.length} total · {requests.filter((r) => r.status === "open").length} open</p>
         </div>
+        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 text-sm font-medium bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-xl transition-colors">
+          <Plus className="w-4 h-4" />New request
+        </button>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-2 mb-6">
         <Filter className="w-4 h-4 text-charcoal-tertiary" />
         {(["all", "open", "in_progress", "resolved"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setStatusFilter(f)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-              statusFilter === f
-                ? "bg-brand text-white"
-                : "bg-warm-100 text-charcoal-secondary hover:bg-warm-200"
-            }`}
-          >
+          <button key={f} onClick={() => setStatusFilter(f)}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${statusFilter === f ? "bg-brand text-white" : "bg-warm-100 text-charcoal-secondary hover:bg-warm-200"}`}>
             {f === "all" ? "All" : STATUS_LABELS[f]}
           </button>
         ))}
@@ -82,46 +113,24 @@ export default function RequestsPage() {
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-warm-300/50 p-8 text-center">
           <Wrench className="w-8 h-8 text-charcoal-tertiary mx-auto mb-3" strokeWidth={1.5} />
-          <p className="text-sm text-charcoal-secondary">
-            {statusFilter === "all" ? "No requests yet." : `No ${STATUS_LABELS[statusFilter as RequestStatus].toLowerCase()} requests.`}
-          </p>
+          <p className="text-sm text-charcoal-secondary">{statusFilter === "all" ? "No requests yet." : `No ${STATUS_LABELS[statusFilter as RequestStatus].toLowerCase()} requests.`}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((req) => (
-            <div
-              key={req.id}
-              className="bg-white rounded-2xl border border-warm-300/50 p-5"
-            >
+            <div key={req.id} className="bg-white rounded-2xl border border-warm-300/50 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <p className="font-medium text-charcoal">{req.description}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>
-                      {CATEGORY_LABELS[req.category]}
-                    </span>
-                    <span className="text-xs text-charcoal-tertiary">
-                      {req.property_name} · {req.unit_label}
-                    </span>
-                    {req.tenant_name && (
-                      <span className="text-xs text-charcoal-tertiary">
-                        by {req.tenant_name}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>{CATEGORY_LABELS[req.category]}</span>
+                    <span className="text-xs text-charcoal-tertiary">{req.property_name} · {req.unit_label}</span>
+                    {req.tenant_name && <span className="text-xs text-charcoal-tertiary">by {req.tenant_name}</span>}
                   </div>
-                  <p className="text-xs text-charcoal-tertiary mt-2">
-                    {new Date(req.created_at).toLocaleDateString("en-US", {
-                      month: "short", day: "numeric", year: "numeric",
-                    })}
-                  </p>
+                  <p className="text-xs text-charcoal-tertiary mt-2">{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
                 </div>
-
-                {/* Status selector */}
-                <select
-                  value={req.status}
-                  onChange={(e) => updateStatus(req.id, e.target.value as RequestStatus)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer status-${req.status}`}
-                >
+                <select value={req.status} onChange={(e) => updateStatus(req.id, e.target.value as RequestStatus)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer status-${req.status}`}>
                   <option value="open">Open</option>
                   <option value="in_progress">In Progress</option>
                   <option value="resolved">Resolved</option>
@@ -129,6 +138,60 @@ export default function RequestsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Add Request Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-charcoal">New request</h3>
+              <button onClick={() => setShowAdd(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
+            </div>
+
+            <form onSubmit={handleAddRequest} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Property *</label>
+                <select value={reqPropertyId} onChange={(e) => { setReqPropertyId(e.target.value); setReqUnitId(""); }} required
+                  className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors">
+                  {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Unit *</label>
+                <select value={reqUnitId} onChange={(e) => setReqUnitId(e.target.value)} required
+                  className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors">
+                  <option value="">Select a unit</option>
+                  {filteredUnits.map((u) => <option key={u.id} value={u.id}>{u.label}{u.tenant_name ? ` — ${u.tenant_name}` : ""}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Category</label>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((cat) => (
+                    <button key={cat.key} type="button" onClick={() => setReqCategory(cat.key)}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${reqCategory === cat.key ? "bg-brand text-white" : "bg-warm-100 text-charcoal-secondary hover:bg-warm-200"}`}>
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Description *</label>
+                <textarea value={reqDescription} onChange={(e) => setReqDescription(e.target.value)} placeholder="Describe the issue..." rows={3} required
+                  className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white resize-none outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" autoFocus />
+              </div>
+
+              <button type="submit" disabled={saving || !reqDescription.trim() || !reqUnitId}
+                className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60">
+                {saving ? "Creating..." : "Create request"}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
