@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #0C8276;
+  --color-brand-light: #14A396;
+  --color-brand-dark: #065C54;
+  --color-brand-muted: #C5E8E4;
+  --color-brand-faint: #EDF7F6;
+
+  --color-accent: #D4883A;
+  --color-accent-light: #FEF7ED;
+
+  --color-warm-white: #F8F6F3;
+  --color-warm-100: #F2F0ED;
+  --color-warm-200: #E8E6E3;
+  --color-warm-300: #E7E5E4;
+
+  --color-charcoal: #1C1917;
+  --color-charcoal-secondary: #78716C;
+  --color-charcoal-tertiary: #A8A29E;
+
+  --color-danger: #DC2626;
+  --color-danger-light: #FEF2F2;
+  --color-warning: #D97706;
+  --color-warning-light: #FFFBEB;
+  --color-success: #059669;
+  --color-success-light: #ECFDF5;
+
+  --font-display: "DM Serif Display", serif;
+  --font-body: "DM Sans", sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-body);
+    color: var(--color-charcoal);
+    background-color: var(--color-warm-white);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Status badge colors */
+.status-open { background-color: var(--color-danger-light); color: var(--color-danger); }
+.status-in_progress { background-color: var(--color-warning-light); color: var(--color-warning); }
+.status-resolved { background-color: var(--color-success-light); color: var(--color-success); }
+
+/* Category badge colors */
+.cat-plumbing { background-color: #EFF6FF; color: #2563EB; }
+.cat-electrical { background-color: #FFFBEB; color: #D97706; }
+.cat-hvac { background-color: #F5F3FF; color: #7C3AED; }
+.cat-appliance { background-color: #FDF2F8; color: #DB2777; }
+.cat-other { background-color: #F5F5F4; color: #78716C; }
+
+/* Smooth page transitions */
+.page-enter {
+  animation: fadeUp 0.3s ease-out;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
