@@ -132,7 +132,7 @@ export default async function HomePage() {
         <div className="max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-brand-faint text-brand-dark text-sm font-medium px-4 py-2 rounded-full mb-8">
             <Shield className="w-4 h-4" />
-            Now available on web — no app download needed
+            Now available on web — no download needed
           </div>
 
           <h1
