@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [newPropName, setNewPropName] = useState("");
   const [newPropAddress, setNewPropAddress] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const fetchData = useCallback(async () => {
     const {
@@ -65,9 +66,14 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!newPropName.trim()) return;
     setSaving(true);
+    setSaveError("");
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setSaveError("You must be signed in to add a property.");
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase.from("properties").insert({
       owner_id: user.id,
@@ -76,17 +82,22 @@ export default function DashboardPage() {
       unit_count: 0,
     });
 
-    if (!error) {
-      await supabase.from("activities").insert({
-        owner_id: user.id,
-        type: "property_added",
-        title: "Property added",
-        subtitle: newPropName.trim(),
-      });
+    if (error) {
+      setSaveError(error.message || "Failed to save property. Please try again.");
+      setSaving(false);
+      return;
     }
+
+    await supabase.from("activities").insert({
+      owner_id: user.id,
+      type: "property_added",
+      title: "Property added",
+      subtitle: newPropName.trim(),
+    });
 
     setNewPropName("");
     setNewPropAddress("");
+    setSaveError("");
     setShowAddProperty(false);
     setSaving(false);
     fetchData();
@@ -306,7 +317,7 @@ export default function DashboardPage() {
           <div className="bg-surface rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">Add property</h3>
-              <button onClick={() => setShowAddProperty(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal">
+              <button onClick={() => { setShowAddProperty(false); setSaveError(""); }} className="p-1 text-charcoal-tertiary hover:text-charcoal">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -341,6 +352,12 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
+
+              {saveError && (
+                <div className="bg-danger-light text-danger text-sm font-medium rounded-xl px-4 py-3">
+                  {saveError}
+                </div>
+              )}
 
               <button
                 type="submit"

@@ -1,0 +1,21 @@
+# Next.js dependencies and build output
+proptrack-web/node_modules/
+proptrack-web/.next/
+proptrack-web/out/
+proptrack-web/build/
+proptrack-web/dist/
+proptrack-web/tsconfig.tsbuildinfo
+
+# environment files
+proptrack-web/.env
+proptrack-web/.env.local
+proptrack-web/.env.development.local
+proptrack-web/.env.test.local
+proptrack-web/.env.production.local
+
+# misc
+.DS_Store
+*.pem
+
+# Vercel
+proptrack-web/.vercel

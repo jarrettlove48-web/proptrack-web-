@@ -30,6 +30,7 @@ export default function RequestsPage() {
   const [reqDescription, setReqDescription] = useState("");
   const [reqDate, setReqDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -42,9 +43,11 @@ export default function RequestsPage() {
     setRequests((reqRes.data || []) as MaintenanceRequest[]);
     setProperties((propRes.data || []) as Property[]);
     setUnits((unitRes.data || []) as Unit[]);
-    if (propRes.data?.length && !reqPropertyId) setReqPropertyId(propRes.data[0].id);
+    if (propRes.data?.length) {
+      setReqPropertyId((prev) => prev || propRes.data![0].id);
+    }
     setLoading(false);
-  }, [supabase, reqPropertyId]);
+  }, [supabase]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -54,14 +57,19 @@ export default function RequestsPage() {
     e.preventDefault();
     if (!reqDescription.trim() || !reqPropertyId || !reqUnitId) return;
     setSaving(true);
+    setSaveError("");
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setSaveError("You must be signed in to create a request.");
+      setSaving(false);
+      return;
+    }
 
     const prop = properties.find((p) => p.id === reqPropertyId);
     const unit = units.find((u) => u.id === reqUnitId);
 
-    await supabase.from("maintenance_requests").insert({
+    const { error } = await supabase.from("maintenance_requests").insert({
       unit_id: reqUnitId,
       property_id: reqPropertyId,
       owner_id: user.id,
@@ -74,8 +82,14 @@ export default function RequestsPage() {
       requested_date: reqDate || null,
     });
 
+    if (error) {
+      setSaveError(error.message || "Failed to save request. Please try again.");
+      setSaving(false);
+      return;
+    }
+
     setReqDescription(""); setReqCategory("plumbing"); setReqDate("");
-    setShowAdd(false); setSaving(false);
+    setSaveError(""); setShowAdd(false); setSaving(false);
     fetchData();
   }
 
@@ -161,7 +175,7 @@ export default function RequestsPage() {
           <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">New request</h3>
-              <button onClick={() => setShowAdd(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowAdd(false); setSaveError(""); }} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleAddRequest} className="space-y-4">
@@ -205,6 +219,12 @@ export default function RequestsPage() {
                 <input type="date" value={reqDate} onChange={(e) => setReqDate(e.target.value)}
                   className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors" />
               </div>
+
+              {saveError && (
+                <div className="bg-danger-light text-danger text-sm font-medium rounded-xl px-4 py-3">
+                  {saveError}
+                </div>
+              )}
 
               <button type="submit" disabled={saving || !reqDescription.trim() || !reqUnitId}
                 className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60">
