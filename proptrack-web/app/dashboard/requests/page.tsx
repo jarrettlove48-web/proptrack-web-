@@ -63,7 +63,7 @@ export default function RequestsPage() {
     const prop = properties.find((p) => p.id === reqPropertyId);
     const unit = units.find((u) => u.id === reqUnitId);
 
-    const { error } = await supabase.from("maintenance_requests").insert({
+    const { data: reqData, error } = await supabase.from("maintenance_requests").insert({
       unit_id: reqUnitId,
       property_id: reqPropertyId,
       owner_id: user.id,
@@ -74,13 +74,22 @@ export default function RequestsPage() {
       unit_label: unit?.label || "",
       property_name: prop?.name || "",
       requested_date: reqDate || null,
-    });
+    }).select("id").single();
 
     if (error) {
       setSaving(false);
       setSaveError(error.message || "Failed to create request. Please try again.");
       return;
     }
+
+    await supabase.from("activities").insert({
+      owner_id: user.id,
+      type: "request_created",
+      title: "Request created",
+      subtitle: `${reqCategory} — ${prop?.name || "property"}`,
+      related_id: reqData?.id || null,
+      related_property_id: reqPropertyId,
+    });
 
     setReqDescription(""); setReqCategory("plumbing"); setReqDate("");
     setShowAdd(false); setSaving(false);

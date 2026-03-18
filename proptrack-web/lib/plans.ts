@@ -1,5 +1,16 @@
 import type { PlanTier } from "./types";
 
+export const ADMIN_EMAILS = ["jarrettlove48@gmail.com"];
+
+export function isAdmin(email: string | undefined): boolean {
+  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+export function getEffectivePlan(plan: PlanTier, email?: string, adminOverride?: PlanTier | null): PlanTier {
+  if (isAdmin(email)) return adminOverride || "pro";
+  return plan;
+}
+
 export const PLAN_LIMITS = {
   starter: { maxProperties: 1, maxUnits: 3, expenseTracking: false },
   essential: { maxProperties: 5, maxUnits: 15, expenseTracking: true },

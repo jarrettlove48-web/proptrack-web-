@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { Expense, Property } from "@/lib/types";
-import { canTrackExpenses } from "@/lib/plans";
+import { canTrackExpenses, getEffectivePlan } from "@/lib/plans";
 import { Receipt, DollarSign, Plus, X, Trash2, Building2, Download } from "lucide-react";
 import { useDashboard } from "../layout";
+
 
 const EXPENSE_CATEGORIES = [
   { key: "repair", label: "Repair" },
@@ -17,7 +18,7 @@ const EXPENSE_CATEGORIES = [
 
 export default function ExpensesPage() {
   const supabase = createClient();
-  const { profile, showUpgradeModal } = useDashboard();
+  const { profile, showUpgradeModal, adminSimulatedPlan } = useDashboard();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export default function ExpensesPage() {
       return;
     }
 
-    const { error } = await supabase.from("expenses").insert({
+    const { data: expData, error } = await supabase.from("expenses").insert({
       owner_id: user.id,
       property_id: expPropertyId,
       description: expDesc.trim(),
@@ -72,7 +73,7 @@ export default function ExpensesPage() {
       category: expCategory,
       date: expDate,
       vendor: expVendor.trim() || null,
-    });
+    }).select("id").single();
 
     if (error) {
       setSaving(false);
@@ -86,6 +87,8 @@ export default function ExpensesPage() {
       type: "expense_added",
       title: "Expense logged",
       subtitle: `$${amount.toFixed(2)} - ${prop?.name || "property"}`,
+      related_id: expData?.id || null,
+      related_property_id: expPropertyId,
     });
 
     setExpDesc(""); setExpAmount(""); setExpVendor(""); setExpCategory("repair");
@@ -107,7 +110,7 @@ export default function ExpensesPage() {
     return <div className="flex items-center justify-center py-20"><div className="w-7 h-7 border-3 border-brand/20 border-t-brand rounded-full animate-spin" /></div>;
   }
 
-  const plan = profile?.plan || "starter";
+  const plan = getEffectivePlan(profile?.plan || "starter", profile?.email, adminSimulatedPlan);
   if (!canTrackExpenses(plan)) {
     return (
       <div className="text-center py-20">

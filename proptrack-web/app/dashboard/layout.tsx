@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, createContext, useContext } from "rea
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import type { Profile, PlanTier } from "@/lib/types";
-import { getUpgradeUrl, PLAN_LIMITS } from "@/lib/plans";
+import { getUpgradeUrl, PLAN_LIMITS, getEffectivePlan, isAdmin } from "@/lib/plans";
 import Link from "next/link";
 import {
   Building2,
@@ -26,6 +26,8 @@ interface DashboardContextType {
   isDark: boolean;
   toggleDarkMode: () => void;
   showUpgradeModal: (feature: string) => void;
+  adminSimulatedPlan: PlanTier | null;
+  setAdminSimulatedPlan: (plan: PlanTier | null) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType>({
@@ -34,6 +36,8 @@ const DashboardContext = createContext<DashboardContextType>({
   isDark: false,
   toggleDarkMode: () => {},
   showUpgradeModal: () => {},
+  adminSimulatedPlan: null,
+  setAdminSimulatedPlan: () => {},
 });
 
 export function useDashboard() {
@@ -63,6 +67,28 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const [isDark, setIsDark] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null);
+  const [adminSimulatedPlan, setAdminSimulatedPlanState] = useState<PlanTier | null>(null);
+
+  // Load admin simulated plan from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("proptrack-admin-simulated-plan");
+      if (stored && ["starter", "essential", "pro"].includes(stored)) {
+        setAdminSimulatedPlanState(stored as PlanTier);
+      }
+    } catch {}
+  }, []);
+
+  const setAdminSimulatedPlan = useCallback((plan: PlanTier | null) => {
+    setAdminSimulatedPlanState(plan);
+    try {
+      if (plan) {
+        localStorage.setItem("proptrack-admin-simulated-plan", plan);
+      } else {
+        localStorage.removeItem("proptrack-admin-simulated-plan");
+      }
+    } catch {}
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     const {
@@ -120,9 +146,11 @@ export default function DashboardLayout({
     router.refresh();
   }
 
-  const plan = (profile?.plan || "starter") as PlanTier;
+  const rawPlan = (profile?.plan || "starter") as PlanTier;
+  const plan = getEffectivePlan(rawPlan, profile?.email, adminSimulatedPlan);
   const upgradeUrl = getUpgradeUrl(plan);
   const limits = PLAN_LIMITS[plan];
+  const adminMode = isAdmin(profile?.email);
 
   const upgradeMessages: Record<string, string> = {
     properties: `You can have up to ${limits.maxProperties} propert${limits.maxProperties === 1 ? "y" : "ies"} on the ${plan} plan.`,
@@ -139,7 +167,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <DashboardContext.Provider value={{ profile, refreshProfile: fetchProfile, isDark, toggleDarkMode, showUpgradeModal }}>
+    <DashboardContext.Provider value={{ profile, refreshProfile: fetchProfile, isDark, toggleDarkMode, showUpgradeModal, adminSimulatedPlan, setAdminSimulatedPlan }}>
       <div className="min-h-screen bg-warm-white flex">
         {/* Desktop sidebar */}
         <aside className="hidden md:flex w-60 bg-surface border-r border-warm-300/60 flex-col fixed h-full">
@@ -187,7 +215,7 @@ export default function DashboardLayout({
                   {profile?.name || "Landlord"}
                 </p>
                 <p className="text-xs text-charcoal-tertiary truncate">
-                  {profile?.plan || "starter"} plan
+                  {adminMode ? (adminSimulatedPlan ? `Admin · ${adminSimulatedPlan}` : "Admin · pro") : `${profile?.plan || "starter"} plan`}
                 </p>
               </div>
             </div>

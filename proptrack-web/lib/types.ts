@@ -39,6 +39,7 @@ export interface Unit {
   invite_code: string | null;
   tenant_portal_active: boolean;
   tenant_user_id: string | null;
+  lease_end_date: string | null;
   created_at: string;
 }
 
@@ -86,6 +87,20 @@ export interface Expense {
   created_at: string;
 }
 
+export interface Tenant {
+  id: string;
+  unit_id: string;
+  property_id: string;
+  owner_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  move_in_date: string | null;
+  lease_end_date: string | null;
+  is_primary: boolean;
+  created_at: string;
+}
+
 export interface Activity {
   id: string;
   owner_id: string;
@@ -93,8 +108,32 @@ export interface Activity {
   title: string;
   subtitle: string;
   related_id: string | null;
+  related_property_id: string | null;
   created_at: string;
 }
+
+export type CalendarEventType = "maintenance" | "rent_reminder" | "move_in" | "move_out" | "inspection" | "other";
+
+export interface CalendarEvent {
+  id: string;
+  owner_id: string;
+  property_id: string | null;
+  unit_id: string | null;
+  title: string;
+  description: string | null;
+  event_date: string;
+  event_type: CalendarEventType;
+  created_at: string;
+}
+
+export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
+  maintenance: "Maintenance",
+  rent_reminder: "Rent Reminder",
+  move_in: "Move-in",
+  move_out: "Move-out",
+  inspection: "Inspection",
+  other: "Other",
+};
 
 export const STATUS_LABELS: Record<RequestStatus, string> = {
   open: "Open",
