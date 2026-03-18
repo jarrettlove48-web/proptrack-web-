@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const role = searchParams.get("role"); // "landlord" or "tenant"
+  const inviteCode = searchParams.get("invite_code"); // from tenant invite flow
 
   if (code) {
     const supabase = await createClient();
@@ -22,7 +23,33 @@ export async function GET(request: Request) {
           .eq("id", user.id)
           .single();
 
-        // Returning user with existing role
+        // Tenant with invite code — redeem it regardless of new/returning
+        if (inviteCode) {
+          // Set role to tenant (upsert — works for new and existing users)
+          await supabase
+            .from("profiles")
+            .update({ role: "tenant" })
+            .eq("id", user.id);
+
+          // Redeem the invite code to link this user to their unit
+          const { data: redeemData, error: redeemError } = await supabase.rpc(
+            "redeem_invite",
+            { code: inviteCode }
+          );
+
+          if (!redeemError && redeemData?.success) {
+            return NextResponse.redirect(`${origin}/tenant`);
+          }
+
+          // Redemption failed — send to invite page with error
+          return NextResponse.redirect(
+            `${origin}/invite?error=${encodeURIComponent(
+              redeemData?.error || redeemError?.message || "Failed to redeem invite code"
+            )}`
+          );
+        }
+
+        // Returning user with existing role (no invite code)
         if (profile?.role === "tenant") {
           return NextResponse.redirect(`${origin}/tenant`);
         }
@@ -30,13 +57,12 @@ export async function GET(request: Request) {
           return NextResponse.redirect(`${origin}/dashboard`);
         }
 
-        // New user (no role set yet) — assign based on which tab they signed in from
+        // New user, no invite code — assign based on which tab they signed in from
         if (role === "tenant") {
           await supabase
             .from("profiles")
             .update({ role: "tenant" })
             .eq("id", user.id);
-          // Send to invite page so they can enter their invite code
           return NextResponse.redirect(`${origin}/invite`);
         }
 

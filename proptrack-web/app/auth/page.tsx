@@ -166,43 +166,21 @@ function AuthForm() {
               Tenant portal
             </h2>
             <p className="text-sm text-charcoal-secondary text-center mb-6">
-              Sign in to your tenant portal
+              Enter your invite code to get started
             </p>
 
-            {/* Google Sign-In for tenant */}
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-charcoal font-medium py-3 rounded-xl transition-colors border border-warm-300 disabled:opacity-60 mb-5"
+            <Link
+              href="/invite"
+              className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold py-3.5 rounded-xl transition-colors"
             >
-              {googleLoading ? (
-                <div className="w-5 h-5 border-2 border-charcoal-tertiary/30 border-t-charcoal-tertiary rounded-full animate-spin" />
-              ) : (
-                <>
-                  <GoogleIcon />
-                  Continue with Google
-                </>
-              )}
-            </button>
+              I have an invite code
+              <ArrowRight className="w-4 h-4" />
+            </Link>
 
-            {error && (
-              <div className="bg-danger-light text-danger text-sm font-medium text-center rounded-xl px-4 py-3 mb-4">
-                {error}
-              </div>
-            )}
-
-            <div className="text-center mt-2">
-              <Link
-                href="/invite"
-                className="inline-flex items-center gap-1.5 text-sm text-brand font-semibold hover:text-brand-dark transition-colors"
-              >
-                I have an invite code
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <p className="text-xs text-charcoal-tertiary mt-3">
-                New tenant? Ask your landlord to send you an invite code from PropTrack.
-              </p>
-            </div>
+            <p className="text-xs text-charcoal-tertiary text-center mt-5 leading-relaxed">
+              Your landlord sends you an invite code from PropTrack.
+              Enter it to link your account to your unit.
+            </p>
           </>
         ) : (
           /* --- Landlord mode --- */
