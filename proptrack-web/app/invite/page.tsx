@@ -38,12 +38,35 @@ export default function InvitePage() {
   // State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [verifiedUnit, setVerifiedUnit] = useState<{
     id: string;
     label: string;
     tenant_name: string;
     property_id: string;
   } | null>(null);
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setError("Enter your email first, then click Forgot password.");
+      return;
+    }
+    setResetLoading(true);
+    setError("");
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+      if (resetError) throw resetError;
+      setResetSent(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send reset email";
+      setError(message);
+    } finally {
+      setResetLoading(false);
+    }
+  }
 
   async function handleVerifyCode(e: React.FormEvent) {
     e.preventDefault();
@@ -127,17 +150,16 @@ export default function InvitePage() {
         })
         .eq("id", user.id);
 
-      // Link tenant to unit
+      // Redeem invite code via RPC (bypasses RLS)
       const code = inviteCode.trim().toUpperCase();
-      await supabase
-        .from("units")
-        .update({
-          tenant_user_id: user.id,
-          tenant_portal_active: true,
-          tenant_email: email.trim(),
-        })
-        .eq("invite_code", code)
-        .eq("is_invited", true);
+      const { data: redeemData, error: redeemError } = await supabase.rpc("redeem_invite", {
+        code,
+      });
+
+      if (redeemError) throw redeemError;
+      if (!redeemData?.success) {
+        throw new Error(redeemData?.error || "Failed to redeem invite code.");
+      }
 
       router.push("/tenant");
       router.refresh();
@@ -332,6 +354,25 @@ export default function InvitePage() {
                   )}
                 </button>
               </div>
+
+              {accountMode === "returning" && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetLoading}
+                    className="text-sm text-brand hover:text-brand-dark font-medium transition-colors disabled:opacity-60"
+                  >
+                    {resetLoading ? "Sending..." : "Forgot password?"}
+                  </button>
+                </div>
+              )}
+
+              {resetSent && (
+                <div className="bg-success-light text-success text-sm font-medium text-center rounded-xl px-4 py-3">
+                  Check your email for a password reset link.
+                </div>
+              )}
 
               {error && (
                 <div className="bg-danger-light text-danger text-sm font-medium text-center rounded-xl px-4 py-3">

@@ -31,6 +31,8 @@ function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const supabase = createClient();
 
@@ -90,6 +92,27 @@ function AuthForm() {
       setError(message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setError("Enter your email first, then click Forgot password.");
+      return;
+    }
+    setResetLoading(true);
+    setError("");
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+      if (resetError) throw resetError;
+      setResetSent(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send reset email";
+      setError(message);
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -194,6 +217,25 @@ function AuthForm() {
               )}
             </button>
           </div>
+
+          {mode === "login" && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetLoading}
+                className="text-sm text-brand hover:text-brand-dark font-medium transition-colors disabled:opacity-60"
+              >
+                {resetLoading ? "Sending..." : "Forgot password?"}
+              </button>
+            </div>
+          )}
+
+          {resetSent && (
+            <div className="bg-success-light text-success text-sm font-medium text-center rounded-xl px-4 py-3">
+              Check your email for a password reset link.
+            </div>
+          )}
 
           {error && (
             <div className="bg-danger-light text-danger text-sm font-medium text-center rounded-xl px-4 py-3">
