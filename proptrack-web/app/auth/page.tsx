@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
-import { Building2, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Building2, Mail, Lock, User, ArrowRight, Eye, EyeOff, Home, Wrench } from "lucide-react";
 import Link from "next/link";
 
 function GoogleIcon() {
@@ -21,8 +21,9 @@ function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
-  const nextPath = searchParams.get("next") || "/dashboard";
+  const initialRole = searchParams.get("role") === "tenant" ? "tenant" : "landlord";
 
+  const [role, setRole] = useState<"landlord" | "tenant">(initialRole);
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +37,8 @@ function AuthForm() {
 
   const supabase = createClient();
 
+  const nextPath = role === "tenant" ? "/tenant" : "/dashboard";
+
   async function handleGoogleSignIn() {
     setError("");
     setGoogleLoading(true);
@@ -43,7 +46,7 @@ function AuthForm() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+          redirectTo: `${window.location.origin}/auth/callback?role=${role}`,
         },
       });
       if (oauthError) throw oauthError;
@@ -129,159 +132,222 @@ function AuthForm() {
         >
           PropTrack
         </h1>
-        <p className="text-white/70 text-sm mt-1">Landlord dashboard</p>
+        <p className="text-white/70 text-sm mt-1">Property management, simplified</p>
+      </div>
+
+      {/* Role pill toggle */}
+      <div className="flex bg-white/15 rounded-2xl p-1 mb-6 w-full max-w-xs">
+        <button
+          onClick={() => { setRole("landlord"); setError(""); }}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            role === "landlord" ? "bg-white text-brand" : "text-white/70 hover:text-white"
+          }`}
+        >
+          <Home className="w-4 h-4" strokeWidth={2} />
+          Landlord
+        </button>
+        <button
+          onClick={() => { setRole("tenant"); setError(""); }}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            role === "tenant" ? "bg-white text-brand" : "text-white/70 hover:text-white"
+          }`}
+        >
+          <Wrench className="w-4 h-4" strokeWidth={2} />
+          Tenant
+        </button>
       </div>
 
       {/* Form card */}
       <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl">
-        <h2 className="text-xl font-bold text-charcoal text-center mb-1">
-          {mode === "signup" ? "Create your account" : "Welcome back"}
-        </h2>
-        <p className="text-sm text-charcoal-secondary text-center mb-6">
-          {mode === "signup"
-            ? "Start tracking maintenance in minutes."
-            : "Sign in to your dashboard."}
-        </p>
+        {role === "tenant" ? (
+          /* --- Tenant mode --- */
+          <>
+            <h2 className="text-xl font-bold text-charcoal text-center mb-1">
+              Tenant portal
+            </h2>
+            <p className="text-sm text-charcoal-secondary text-center mb-6">
+              Sign in to your tenant portal
+            </p>
 
-        {/* Google Sign-In */}
-        <button
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-charcoal font-medium py-3 rounded-xl transition-colors border border-warm-300 disabled:opacity-60 mb-5"
-        >
-          {googleLoading ? (
-            <div className="w-5 h-5 border-2 border-charcoal-tertiary/30 border-t-charcoal-tertiary rounded-full animate-spin" />
-          ) : (
-            <>
-              <GoogleIcon />
-              Continue with Google
-            </>
-          )}
-        </button>
-
-        {/* Divider */}
-        <div className="flex items-center gap-4 mb-5">
-          <div className="flex-1 h-px bg-warm-300" />
-          <span className="text-xs text-charcoal-tertiary font-medium">or</span>
-          <div className="flex-1 h-px bg-warm-300" />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {mode === "signup" && (
-            <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
-              <User className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
-              <input
-                type="text"
-                placeholder="Full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
-              />
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
-            <Mail className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
-            <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
-            <Lock className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            />
+            {/* Google Sign-In for tenant */}
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="text-charcoal-tertiary hover:text-charcoal transition-colors"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-charcoal font-medium py-3 rounded-xl transition-colors border border-warm-300 disabled:opacity-60 mb-5"
             >
-              {showPassword ? (
-                <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.8} />
+              {googleLoading ? (
+                <div className="w-5 h-5 border-2 border-charcoal-tertiary/30 border-t-charcoal-tertiary rounded-full animate-spin" />
               ) : (
-                <Eye className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
               )}
             </button>
-          </div>
 
-          {mode === "login" && (
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                disabled={resetLoading}
-                className="text-sm text-brand hover:text-brand-dark font-medium transition-colors disabled:opacity-60"
+            {error && (
+              <div className="bg-danger-light text-danger text-sm font-medium text-center rounded-xl px-4 py-3 mb-4">
+                {error}
+              </div>
+            )}
+
+            <div className="text-center mt-2">
+              <Link
+                href="/invite"
+                className="inline-flex items-center gap-1.5 text-sm text-brand font-semibold hover:text-brand-dark transition-colors"
               >
-                {resetLoading ? "Sending..." : "Forgot password?"}
+                I have an invite code
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <p className="text-xs text-charcoal-tertiary mt-3">
+                New tenant? Ask your landlord to send you an invite code from PropTrack.
+              </p>
+            </div>
+          </>
+        ) : (
+          /* --- Landlord mode --- */
+          <>
+            <h2 className="text-xl font-bold text-charcoal text-center mb-1">
+              {mode === "signup" ? "Create your account" : "Welcome back"}
+            </h2>
+            <p className="text-sm text-charcoal-secondary text-center mb-6">
+              {mode === "signup"
+                ? "Start tracking maintenance in minutes."
+                : "Sign in to your dashboard."}
+            </p>
+
+            {/* Google Sign-In */}
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-charcoal font-medium py-3 rounded-xl transition-colors border border-warm-300 disabled:opacity-60 mb-5"
+            >
+              {googleLoading ? (
+                <div className="w-5 h-5 border-2 border-charcoal-tertiary/30 border-t-charcoal-tertiary rounded-full animate-spin" />
+              ) : (
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-4 mb-5">
+              <div className="flex-1 h-px bg-warm-300" />
+              <span className="text-xs text-charcoal-tertiary font-medium">or</span>
+              <div className="flex-1 h-px bg-warm-300" />
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {mode === "signup" && (
+                <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
+                  <User className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
+                <Mail className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 border border-warm-300 rounded-xl px-4 py-3 bg-warm-white focus-within:border-brand transition-colors">
+                <Lock className="w-[18px] h-[18px] text-charcoal-tertiary shrink-0" strokeWidth={1.8} />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="flex-1 bg-transparent text-sm text-charcoal outline-none placeholder:text-charcoal-tertiary"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-charcoal-tertiary hover:text-charcoal transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                  ) : (
+                    <Eye className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                  )}
+                </button>
+              </div>
+
+              {mode === "login" && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetLoading}
+                    className="text-sm text-brand hover:text-brand-dark font-medium transition-colors disabled:opacity-60"
+                  >
+                    {resetLoading ? "Sending..." : "Forgot password?"}
+                  </button>
+                </div>
+              )}
+
+              {resetSent && (
+                <div className="bg-success-light text-success text-sm font-medium text-center rounded-xl px-4 py-3">
+                  Check your email for a password reset link.
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-danger-light text-danger text-sm font-medium text-center rounded-xl px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-60"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    {mode === "signup" ? "Create account" : "Sign in"}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="text-center mt-6">
+              <button
+                onClick={() => {
+                  setMode(mode === "login" ? "signup" : "login");
+                  setError("");
+                }}
+                className="text-sm text-charcoal-secondary"
+              >
+                {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+                <span className="text-brand font-semibold">
+                  {mode === "login" ? "Sign up" : "Sign in"}
+                </span>
               </button>
             </div>
-          )}
-
-          {resetSent && (
-            <div className="bg-success-light text-success text-sm font-medium text-center rounded-xl px-4 py-3">
-              Check your email for a password reset link.
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-danger-light text-danger text-sm font-medium text-center rounded-xl px-4 py-3">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-60"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                {mode === "signup" ? "Create account" : "Sign in"}
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="text-center mt-6">
-          <button
-            onClick={() => {
-              setMode(mode === "login" ? "signup" : "login");
-              setError("");
-            }}
-            className="text-sm text-charcoal-secondary"
-          >
-            {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-            <span className="text-brand font-semibold">
-              {mode === "login" ? "Sign up" : "Sign in"}
-            </span>
-          </button>
-        </div>
-
-        <div className="text-center mt-4">
-          <Link
-            href="/invite"
-            className="text-sm text-charcoal-tertiary hover:text-charcoal-secondary transition-colors"
-          >
-            I&apos;m a tenant with an invite code →
-          </Link>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
