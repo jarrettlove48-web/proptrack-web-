@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
-import { Building2, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Building2, Home, Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 function GoogleIcon() {
@@ -21,9 +21,11 @@ function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const initialRole = searchParams.get("role") === "tenant" ? "tenant" : "landlord";
   const nextPath = searchParams.get("next") || "/dashboard";
 
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const [role, setRole] = useState<"landlord" | "tenant">(initialRole);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -36,14 +38,17 @@ function AuthForm() {
 
   const supabase = createClient();
 
+  const redirectAfterAuth = role === "tenant" ? "/tenant" : nextPath;
+
   async function handleGoogleSignIn() {
     setError("");
     setGoogleLoading(true);
     try {
+      const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectAfterAuth)}&role=${role}`;
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+          redirectTo: callbackUrl,
         },
       });
       if (oauthError) throw oauthError;
@@ -74,7 +79,7 @@ function AuthForm() {
         if (user) {
           await supabase
             .from("profiles")
-            .update({ role: "landlord", name: name.trim() || email.trim().split("@")[0] })
+            .update({ role, name: name.trim() || email.trim().split("@")[0] })
             .eq("id", user.id);
         }
       } else {
@@ -85,7 +90,7 @@ function AuthForm() {
         if (signInError) throw signInError;
       }
 
-      router.push(nextPath);
+      router.push(redirectAfterAuth);
       router.refresh();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";
@@ -119,7 +124,7 @@ function AuthForm() {
   return (
     <div className="min-h-screen bg-brand flex flex-col items-center justify-center px-6 py-12">
       {/* Branding */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <div className="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center mx-auto mb-4">
           <Building2 className="w-8 h-8 text-white" strokeWidth={1.6} />
         </div>
@@ -129,7 +134,34 @@ function AuthForm() {
         >
           PropTrack
         </h1>
-        <p className="text-white/70 text-sm mt-1">Landlord dashboard</p>
+        <p className="text-white/70 text-sm mt-1">Property management, simplified</p>
+      </div>
+
+      {/* Role toggle */}
+      <div className="flex bg-white/15 backdrop-blur-sm rounded-full p-1 mb-8 w-full max-w-[280px]">
+        {(["landlord", "tenant"] as const).map((r) => (
+          <button
+            key={r}
+            onClick={() => {
+              setRole(r);
+              setError("");
+              setResetSent(false);
+              if (r === "tenant") setMode("login");
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-2.5 rounded-full transition-all ${
+              role === r
+                ? "bg-white text-brand shadow-sm"
+                : "text-white/80 hover:text-white"
+            }`}
+          >
+            {r === "landlord" ? (
+              <Building2 className="w-4 h-4" strokeWidth={2} />
+            ) : (
+              <Home className="w-4 h-4" strokeWidth={2} />
+            )}
+            {r === "landlord" ? "Landlord" : "Tenant"}
+          </button>
+        ))}
       </div>
 
       {/* Form card */}
@@ -138,9 +170,11 @@ function AuthForm() {
           {mode === "signup" ? "Create your account" : "Welcome back"}
         </h2>
         <p className="text-sm text-charcoal-secondary text-center mb-6">
-          {mode === "signup"
-            ? "Start tracking maintenance in minutes."
-            : "Sign in to your dashboard."}
+          {role === "tenant"
+            ? "Sign in to your tenant portal."
+            : mode === "signup"
+              ? "Start tracking maintenance in minutes."
+              : "Sign in to your dashboard."}
         </p>
 
         {/* Google Sign-In */}
@@ -259,29 +293,32 @@ function AuthForm() {
           </button>
         </form>
 
-        <div className="text-center mt-6">
-          <button
-            onClick={() => {
-              setMode(mode === "login" ? "signup" : "login");
-              setError("");
-            }}
-            className="text-sm text-charcoal-secondary"
-          >
-            {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-            <span className="text-brand font-semibold">
-              {mode === "login" ? "Sign up" : "Sign in"}
-            </span>
-          </button>
-        </div>
-
-        <div className="text-center mt-4">
-          <Link
-            href="/invite"
-            className="text-sm text-charcoal-tertiary hover:text-charcoal-secondary transition-colors"
-          >
-            I&apos;m a tenant with an invite code →
-          </Link>
-        </div>
+        {/* Footer links */}
+        {role === "landlord" ? (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => {
+                setMode(mode === "login" ? "signup" : "login");
+                setError("");
+              }}
+              className="text-sm text-charcoal-secondary"
+            >
+              {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+              <span className="text-brand font-semibold">
+                {mode === "login" ? "Sign up" : "Sign in"}
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="text-center mt-6">
+            <Link
+              href="/invite"
+              className="text-sm text-charcoal-secondary"
+            >
+              New tenant? <span className="text-brand font-semibold">Use your invite code</span>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
