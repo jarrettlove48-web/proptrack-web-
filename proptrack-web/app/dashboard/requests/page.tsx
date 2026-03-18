@@ -30,6 +30,7 @@ export default function RequestsPage() {
   const [reqDescription, setReqDescription] = useState("");
   const [reqDate, setReqDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -54,14 +55,15 @@ export default function RequestsPage() {
     e.preventDefault();
     if (!reqDescription.trim() || !reqPropertyId || !reqUnitId) return;
     setSaving(true);
+    setSaveError("");
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSaving(false); setSaveError("You must be logged in."); return; }
 
     const prop = properties.find((p) => p.id === reqPropertyId);
     const unit = units.find((u) => u.id === reqUnitId);
 
-    await supabase.from("maintenance_requests").insert({
+    const { error } = await supabase.from("maintenance_requests").insert({
       unit_id: reqUnitId,
       property_id: reqPropertyId,
       owner_id: user.id,
@@ -74,8 +76,15 @@ export default function RequestsPage() {
       requested_date: reqDate || null,
     });
 
+    if (error) {
+      setSaving(false);
+      setSaveError(error.message || "Failed to create request. Please try again.");
+      return;
+    }
+
     setReqDescription(""); setReqCategory("plumbing"); setReqDate("");
     setShowAdd(false); setSaving(false);
+    setSaveError("");
     fetchData();
   }
 
@@ -161,8 +170,12 @@ export default function RequestsPage() {
           <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">New request</h3>
-              <button onClick={() => setShowAdd(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowAdd(false); setSaveError(""); }} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
             </div>
+
+            {saveError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-danger-light text-danger text-sm font-medium">{saveError}</div>
+            )}
 
             <form onSubmit={handleAddRequest} className="space-y-4">
               <div>
