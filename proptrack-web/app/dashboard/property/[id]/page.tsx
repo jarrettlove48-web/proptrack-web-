@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 type EditableUnitField = "tenant_name" | "tenant_email" | "tenant_phone" | "lease_end_date";
-type EditableTenantField = "name" | "email" | "phone" | "move_in_date" | "lease_end_date";
+type EditableTenantField = "name" | "email" | "phone" | "move_in_date" | "lease_start" | "lease_end";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -63,8 +63,8 @@ export default function PropertyDetailPage() {
       supabase.from("units").select("*").eq("property_id", id).order("label"),
       supabase.from("maintenance_requests").select("*").eq("property_id", id).order("created_at", { ascending: false }),
     ]);
-    // Fetch tenants — graceful if table doesn't exist yet
-    const tenantRes = await supabase.from("tenants").select("*").eq("property_id", id).order("created_at");
+    // Fetch active tenants
+    const tenantRes = await supabase.from("tenants").select("*").eq("property_id", id).eq("is_active", true).order("created_at");
 
     if (propRes.data) setProperty(propRes.data as Property);
     setUnits((unitRes.data || []) as Unit[]);
@@ -111,9 +111,8 @@ export default function PropertyDetailPage() {
   async function saveTenantEdit() {
     if (!editingTenant || !editingTenantField) return;
     setSavingEdit(true);
-    const value = (editingTenantField === "move_in_date" || editingTenantField === "lease_end_date")
-      ? (editTenantValue || null)
-      : editTenantValue.trim();
+    const isDateField = ["move_in_date", "lease_start", "lease_end"].includes(editingTenantField);
+    const value = isDateField ? (editTenantValue || null) : editTenantValue.trim();
     await supabase.from("tenants").update({ [editingTenantField]: value }).eq("id", editingTenant);
     setEditingTenant(null); setEditingTenantField(null); setEditTenantValue(""); setSavingEdit(false);
     fetchData();
@@ -131,20 +130,19 @@ export default function PropertyDetailPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSavingEdit(false); return; }
 
-    const existingTenants = tenants.filter(t => t.unit_id === unitId);
+    const activeTenants = tenants.filter(t => t.unit_id === unitId);
 
     await supabase.from("tenants").insert({
       unit_id: unitId,
       property_id: property.id,
-      owner_id: user.id,
       name: newTenantName.trim(),
       email: newTenantEmail.trim() || null,
       phone: newTenantPhone.trim() || null,
-      is_primary: existingTenants.length === 0,
+      is_active: true,
     });
 
-    // Also update unit to occupied and set primary tenant info if first tenant
-    if (existingTenants.length === 0) {
+    // Update unit to occupied and sync tenant info
+    if (activeTenants.length === 0) {
       await supabase.from("units").update({
         is_occupied: true,
         tenant_name: newTenantName.trim(),
@@ -158,21 +156,23 @@ export default function PropertyDetailPage() {
     fetchData();
   }
 
-  async function handleDeleteTenant(tenantId: string, unitId: string) {
-    if (!confirm("Remove this tenant?")) return;
-    await supabase.from("tenants").delete().eq("id", tenantId);
+  async function handleMoveTenantOut(tenantId: string, unitId: string) {
+    if (!confirm("Move this tenant out? Their record will be preserved in history.")) return;
+    await supabase.from("tenants").update({
+      is_active: false, move_out_date: new Date().toISOString().split("T")[0],
+    }).eq("id", tenantId);
 
-    // If no more tenants, mark unit vacant
+    // Check remaining active tenants
     const remaining = tenants.filter(t => t.unit_id === unitId && t.id !== tenantId);
     if (remaining.length === 0) {
       await supabase.from("units").update({
         is_occupied: false, tenant_name: "", tenant_email: "", tenant_phone: "",
       }).eq("id", unitId);
     } else {
-      // Update primary tenant on unit
-      const primary = remaining.find(t => t.is_primary) || remaining[0];
+      // Sync first remaining tenant to unit
+      const next = remaining[0];
       await supabase.from("units").update({
-        tenant_name: primary.name, tenant_email: primary.email || "", tenant_phone: primary.phone || "",
+        tenant_name: next.name, tenant_email: next.email || "", tenant_phone: next.phone || "",
       }).eq("id", unitId);
     }
 
@@ -205,9 +205,9 @@ export default function PropertyDetailPage() {
     // If occupied, also create a tenant record
     if (isOccupied && tenantName.trim() && unitData?.id) {
       await supabase.from("tenants").insert({
-        unit_id: unitData.id, property_id: property.id, owner_id: user.id,
+        unit_id: unitData.id, property_id: property.id,
         name: tenantName.trim(), email: tenantEmail.trim() || null, phone: tenantPhone.trim() || null,
-        move_in_date: moveInDate || null, lease_end_date: leaseEndDate || null, is_primary: true,
+        move_in_date: moveInDate || null, lease_end: leaseEndDate || null, is_active: true,
       });
     }
 
@@ -369,20 +369,18 @@ export default function PropertyDetailPage() {
                       {unitTenants.map((t) => (
                         <div key={t.id} className="bg-warm-white rounded-xl px-3 py-2.5 border border-warm-300/30">
                           <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-1.5">
-                              {t.is_primary && <span className="text-[10px] font-bold text-brand bg-brand-faint px-1.5 py-0.5 rounded">PRIMARY</span>}
-                            </div>
-                            <button onClick={() => handleDeleteTenant(t.id, unit.id)}
-                              className="text-charcoal-tertiary hover:text-danger transition-colors opacity-60 hover:opacity-100">
-                              <Trash2 className="w-3 h-3" />
+                            <span className="text-[10px] font-bold text-success bg-success/10 px-1.5 py-0.5 rounded">ACTIVE</span>
+                            <button onClick={() => handleMoveTenantOut(t.id, unit.id)}
+                              className="text-xs font-medium text-charcoal-tertiary hover:text-danger transition-colors opacity-60 hover:opacity-100 flex items-center gap-0.5">
+                              <Trash2 className="w-3 h-3" />Move out
                             </button>
                           </div>
                           <div className="space-y-1">
                             {renderTenantField(t, "name", <User className="w-3 h-3 text-charcoal-tertiary shrink-0" />, t.name, "text", "Tenant name")}
                             {renderTenantField(t, "email", <Mail className="w-3 h-3 text-charcoal-tertiary shrink-0" />, t.email, "email", "tenant@email.com")}
                             {renderTenantField(t, "phone", <Phone className="w-3 h-3 text-charcoal-tertiary shrink-0" />, t.phone, "tel", "(555) 123-4567")}
-                            {renderTenantField(t, "lease_end_date", <Calendar className="w-3 h-3 text-charcoal-tertiary shrink-0" />,
-                              t.lease_end_date ? new Date(t.lease_end_date + "T12:00:00").toLocaleDateString() : null, "date", "")}
+                            {renderTenantField(t, "lease_end", <Calendar className="w-3 h-3 text-charcoal-tertiary shrink-0" />,
+                              t.lease_end ? new Date(t.lease_end + "T12:00:00").toLocaleDateString() : null, "date", "")}
                           </div>
                         </div>
                       ))}

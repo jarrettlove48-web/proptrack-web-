@@ -95,9 +95,13 @@ export interface Tenant {
   name: string;
   email: string | null;
   phone: string | null;
+  user_id: string | null;
+  lease_start: string | null;
+  lease_end: string | null;
   move_in_date: string | null;
-  lease_end_date: string | null;
-  is_primary: boolean;
+  move_out_date: string | null;
+  is_active: boolean;
+  invite_code: string | null;
   created_at: string;
 }
 
