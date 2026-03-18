@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="light" style={{ colorScheme: 'light' }} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `try{if(document.cookie.includes('proptrack-dark-mode=true'))document.documentElement.classList.add('dark')}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
