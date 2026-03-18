@@ -33,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" style={{ colorScheme: 'light' }} suppressHydrationWarning>
       <head>
+        <meta name="color-scheme" content="light" />
         <script dangerouslySetInnerHTML={{ __html: `try{if(document.cookie.includes('proptrack-dark-mode=true'))document.documentElement.classList.add('dark')}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

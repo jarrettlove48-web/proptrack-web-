@@ -2,6 +2,22 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Force light color scheme — must be outside @layer to beat Tailwind preflight */
+html {
+  color-scheme: light !important;
+}
+html.dark {
+  color-scheme: dark !important;
+}
+
+/* Prevent browser dark-mode autofill/input styling */
+input, textarea, select {
+  color-scheme: light;
+}
+html.dark input, html.dark textarea, html.dark select {
+  color-scheme: dark;
+}
+
 @theme {
   --color-brand: #0C8276;
   --color-brand-light: #14A396;
@@ -48,14 +64,6 @@
 }
 
 @layer base {
-  html {
-    color-scheme: light;
-  }
-
-  html.dark {
-    color-scheme: dark;
-  }
-
   body {
     font-family: var(--font-body);
     color: var(--color-charcoal);
