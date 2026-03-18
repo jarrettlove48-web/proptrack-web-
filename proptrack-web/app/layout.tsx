@@ -34,7 +34,7 @@ export default function RootLayout({
     <html lang="en" className="light" style={{ colorScheme: 'light' }} suppressHydrationWarning>
       <head>
         <meta name="color-scheme" content="light" />
-        <script dangerouslySetInnerHTML={{ __html: `try{if(document.cookie.includes('proptrack-dark-mode=true'))document.documentElement.classList.add('dark')}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var p=window.location.pathname;if(document.cookie.includes('proptrack-dark-mode=true')&&(p.startsWith('/dashboard')||p.startsWith('/tenant')))document.documentElement.classList.add('dark')}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
