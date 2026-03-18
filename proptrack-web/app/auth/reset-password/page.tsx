@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import { Building2, Lock, ArrowRight, CheckCircle, Eye, EyeOff } from "lucide-react";
@@ -15,6 +15,20 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+
+  // Pick up the recovery session from the URL hash tokens
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          setSessionReady(true);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +51,7 @@ export default function ResetPasswordPage() {
       if (updateError) throw updateError;
       setSuccess(true);
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/auth");
         router.refresh();
       }, 2000);
     } catch (err: unknown) {
@@ -128,9 +142,15 @@ export default function ResetPasswordPage() {
                 </div>
               )}
 
+              {!sessionReady && (
+                <div className="bg-warning-light text-warning text-sm font-medium text-center rounded-xl px-4 py-3">
+                  Establishing recovery session...
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !sessionReady}
                 className="w-full flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-60"
               >
                 {loading ? (
