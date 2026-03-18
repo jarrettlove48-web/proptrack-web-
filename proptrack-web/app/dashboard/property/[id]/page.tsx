@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import type { Property, Unit, MaintenanceRequest } from "@/lib/types";
 import Link from "next/link";
+import { canAddUnit } from "@/lib/plans";
+import { useDashboard } from "../../layout";
 import {
   Building2, Home, User, Wrench, Mail, Phone, ChevronLeft,
   Copy, Check, Send, UserPlus, Plus, X, Calendar,
@@ -13,6 +15,7 @@ import {
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const supabase = createClient();
+  const { profile, showUpgradeModal } = useDashboard();
 
   const [property, setProperty] = useState<Property | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -126,16 +129,16 @@ export default function PropertyDetailPage() {
       {/* Units */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-charcoal">Units</h2>
-        <button onClick={() => setShowAddUnit(true)} className="flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand-dark transition-colors">
+        <button onClick={() => { const plan = profile?.plan || "starter"; if (!canAddUnit(plan, units.length)) { showUpgradeModal("units"); return; } setShowAddUnit(true); }} className="flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand-dark transition-colors">
           <Plus className="w-4 h-4" />Add unit
         </button>
       </div>
 
       {units.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-warm-300/50 p-8 text-center mb-8">
+        <div className="bg-surface rounded-2xl border border-warm-300/50 p-8 text-center mb-8">
           <Home className="w-8 h-8 text-charcoal-tertiary mx-auto mb-3" strokeWidth={1.5} />
           <p className="text-sm text-charcoal-secondary mb-3">No units added yet.</p>
-          <button onClick={() => setShowAddUnit(true)} className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors">
+          <button onClick={() => { const plan = profile?.plan || "starter"; if (!canAddUnit(plan, units.length)) { showUpgradeModal("units"); return; } setShowAddUnit(true); }} className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors">
             <Plus className="w-4 h-4" />Add first unit
           </button>
         </div>
@@ -144,7 +147,7 @@ export default function PropertyDetailPage() {
           {units.map((unit) => {
             const unitRequests = openRequests.filter((r) => r.unit_id === unit.id);
             return (
-              <div key={unit.id} className="bg-white rounded-2xl border border-warm-300/50 p-5">
+              <div key={unit.id} className="bg-surface rounded-2xl border border-warm-300/50 p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${unit.is_occupied ? "bg-brand-faint" : "bg-warm-100"}`}>
@@ -203,7 +206,7 @@ export default function PropertyDetailPage() {
           <h2 className="text-lg font-semibold text-charcoal mb-4">Recent requests</h2>
           <div className="space-y-2">
             {requests.slice(0, 8).map((req) => (
-              <div key={req.id} className="bg-white rounded-xl border border-warm-300/50 px-4 py-3 flex items-center justify-between">
+              <div key={req.id} className="bg-surface rounded-xl border border-warm-300/50 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>{req.category}</span>
                   <div>
@@ -223,7 +226,7 @@ export default function PropertyDetailPage() {
       {/* Add Unit Modal */}
       {showAddUnit && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
+          <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">Add unit</h3>
               <button onClick={() => setShowAddUnit(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>

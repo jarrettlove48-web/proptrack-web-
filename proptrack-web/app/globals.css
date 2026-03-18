@@ -19,12 +19,27 @@
   --color-charcoal-secondary: #78716C;
   --color-charcoal-tertiary: #A8A29E;
 
+  --color-surface: #FFFFFF;
+
   --color-danger: #DC2626;
   --color-danger-light: #FEF2F2;
   --color-warning: #D97706;
   --color-warning-light: #FFFBEB;
   --color-success: #059669;
   --color-success-light: #ECFDF5;
+  --color-info: #2563EB;
+  --color-info-light: #EFF6FF;
+
+  --color-cat-plumbing: #2563EB;
+  --color-cat-plumbing-bg: #EFF6FF;
+  --color-cat-electrical: #D97706;
+  --color-cat-electrical-bg: #FFFBEB;
+  --color-cat-hvac: #7C3AED;
+  --color-cat-hvac-bg: #F5F3FF;
+  --color-cat-appliance: #DB2777;
+  --color-cat-appliance-bg: #FDF2F8;
+  --color-cat-other: #78716C;
+  --color-cat-other-bg: #F5F5F4;
 
   --font-display: "DM Serif Display", serif;
   --font-body: "DM Sans", sans-serif;
@@ -38,6 +53,48 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  html.dark {
+    --color-brand: #2DD4BF;
+    --color-brand-light: #5EEAD4;
+    --color-brand-dark: #0C8276;
+    --color-brand-muted: #134E48;
+    --color-brand-faint: #0D2D2A;
+
+    --color-accent: #F59E0B;
+    --color-accent-light: #2D2510;
+
+    --color-warm-white: #0C0A09;
+    --color-warm-100: #292524;
+    --color-warm-200: #44403C;
+    --color-warm-300: #44403C;
+
+    --color-charcoal: #FAFAF9;
+    --color-charcoal-secondary: #A8A29E;
+    --color-charcoal-tertiary: #78716C;
+
+    --color-surface: #1C1917;
+
+    --color-danger: #EF4444;
+    --color-danger-light: #2D1515;
+    --color-warning: #FBBF24;
+    --color-warning-light: #2D2815;
+    --color-success: #34D399;
+    --color-success-light: #152D23;
+    --color-info: #60A5FA;
+    --color-info-light: #15202D;
+
+    --color-cat-plumbing: #60A5FA;
+    --color-cat-plumbing-bg: #15202D;
+    --color-cat-electrical: #FBBF24;
+    --color-cat-electrical-bg: #2D2815;
+    --color-cat-hvac: #A78BFA;
+    --color-cat-hvac-bg: #1E1533;
+    --color-cat-appliance: #F472B6;
+    --color-cat-appliance-bg: #2D1525;
+    --color-cat-other: #A8A29E;
+    --color-cat-other-bg: #292524;
+  }
 }
 
 /* Status badge colors */
@@ -46,11 +103,11 @@
 .status-resolved { background-color: var(--color-success-light); color: var(--color-success); }
 
 /* Category badge colors */
-.cat-plumbing { background-color: #EFF6FF; color: #2563EB; }
-.cat-electrical { background-color: #FFFBEB; color: #D97706; }
-.cat-hvac { background-color: #F5F3FF; color: #7C3AED; }
-.cat-appliance { background-color: #FDF2F8; color: #DB2777; }
-.cat-other { background-color: #F5F5F4; color: #78716C; }
+.cat-plumbing { background-color: var(--color-cat-plumbing-bg); color: var(--color-cat-plumbing); }
+.cat-electrical { background-color: var(--color-cat-electrical-bg); color: var(--color-cat-electrical); }
+.cat-hvac { background-color: var(--color-cat-hvac-bg); color: var(--color-cat-hvac); }
+.cat-appliance { background-color: var(--color-cat-appliance-bg); color: var(--color-cat-appliance); }
+.cat-other { background-color: var(--color-cat-other-bg); color: var(--color-cat-other); }
 
 /* Smooth page transitions */
 .page-enter {

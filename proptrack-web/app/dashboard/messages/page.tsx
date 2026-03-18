@@ -98,7 +98,7 @@ export default function MessagesPage() {
 
       <div className="flex gap-4 h-[calc(100vh-200px)] min-h-[400px]">
         {/* Request list */}
-        <div className="w-80 shrink-0 bg-white rounded-2xl border border-warm-300/50 overflow-y-auto hidden md:block">
+        <div className="w-80 shrink-0 bg-surface rounded-2xl border border-warm-300/50 overflow-y-auto hidden md:block">
           <div className="p-4 border-b border-warm-300/40">
             <p className="text-sm font-medium text-charcoal-secondary">
               Active requests ({requests.length})
@@ -134,7 +134,7 @@ export default function MessagesPage() {
                 <button
                   key={req.id}
                   onClick={() => setSelectedRequest(req)}
-                  className="w-full flex items-center justify-between bg-white rounded-xl border border-warm-300/50 p-4"
+                  className="w-full flex items-center justify-between bg-surface rounded-xl border border-warm-300/50 p-4"
                 >
                   <div>
                     <p className="text-sm font-medium text-charcoal truncate">{req.description}</p>
@@ -149,7 +149,7 @@ export default function MessagesPage() {
 
         {/* Chat area */}
         {selectedRequest ? (
-          <div className="flex-1 bg-white rounded-2xl border border-warm-300/50 flex flex-col">
+          <div className="flex-1 bg-surface rounded-2xl border border-warm-300/50 flex flex-col">
             <div className="p-4 border-b border-warm-300/40 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-charcoal">{selectedRequest.description.slice(0, 50)}...</p>
@@ -200,7 +200,7 @@ export default function MessagesPage() {
             </form>
           </div>
         ) : (
-          <div className="hidden md:flex flex-1 bg-white rounded-2xl border border-warm-300/50 items-center justify-center">
+          <div className="hidden md:flex flex-1 bg-surface rounded-2xl border border-warm-300/50 items-center justify-center">
             <div className="text-center">
               <MessageCircle className="w-10 h-10 text-charcoal-tertiary mx-auto mb-3" strokeWidth={1.3} />
               <p className="text-sm text-charcoal-secondary">Select a request to view messages</p>

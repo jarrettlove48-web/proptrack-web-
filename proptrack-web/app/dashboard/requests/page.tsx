@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { MaintenanceRequest, RequestStatus, RequestCategory, Property, Unit } from "@/lib/types";
 import { STATUS_LABELS, CATEGORY_LABELS } from "@/lib/types";
-import { Wrench, Filter, Plus, X, Building2 } from "lucide-react";
+import { Wrench, Filter, Plus, X, Building2, Calendar } from "lucide-react";
 
 const CATEGORIES: { key: RequestCategory; label: string }[] = [
   { key: "plumbing", label: "Plumbing" },
@@ -28,6 +28,7 @@ export default function RequestsPage() {
   const [reqUnitId, setReqUnitId] = useState("");
   const [reqCategory, setReqCategory] = useState<RequestCategory>("plumbing");
   const [reqDescription, setReqDescription] = useState("");
+  const [reqDate, setReqDate] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -70,9 +71,10 @@ export default function RequestsPage() {
       tenant_name: unit?.tenant_name || "",
       unit_label: unit?.label || "",
       property_name: prop?.name || "",
+      requested_date: reqDate || null,
     });
 
-    setReqDescription(""); setReqCategory("plumbing");
+    setReqDescription(""); setReqCategory("plumbing"); setReqDate("");
     setShowAdd(false); setSaving(false);
     fetchData();
   }
@@ -111,14 +113,14 @@ export default function RequestsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-warm-300/50 p-8 text-center">
+        <div className="bg-surface rounded-2xl border border-warm-300/50 p-8 text-center">
           <Wrench className="w-8 h-8 text-charcoal-tertiary mx-auto mb-3" strokeWidth={1.5} />
           <p className="text-sm text-charcoal-secondary">{statusFilter === "all" ? "No requests yet." : `No ${STATUS_LABELS[statusFilter as RequestStatus].toLowerCase()} requests.`}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((req) => (
-            <div key={req.id} className="bg-white rounded-2xl border border-warm-300/50 p-5">
+            <div key={req.id} className="bg-surface rounded-2xl border border-warm-300/50 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <p className="font-medium text-charcoal">{req.description}</p>
@@ -128,6 +130,18 @@ export default function RequestsPage() {
                     {req.tenant_name && <span className="text-xs text-charcoal-tertiary">by {req.tenant_name}</span>}
                   </div>
                   <p className="text-xs text-charcoal-tertiary mt-2">{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    {req.requested_date && (
+                      <span className="text-xs text-charcoal-tertiary flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />Requested: {new Date(req.requested_date).toLocaleDateString()}
+                      </span>
+                    )}
+                    {req.service_date && (
+                      <span className="text-xs text-success flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />Service: {new Date(req.service_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <select value={req.status} onChange={(e) => updateStatus(req.id, e.target.value as RequestStatus)}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer status-${req.status}`}>
@@ -144,7 +158,7 @@ export default function RequestsPage() {
       {/* Add Request Modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
+          <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">New request</h3>
               <button onClick={() => setShowAdd(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
@@ -184,6 +198,12 @@ export default function RequestsPage() {
                 <label className="text-sm font-medium text-charcoal mb-2 block">Description *</label>
                 <textarea value={reqDescription} onChange={(e) => setReqDescription(e.target.value)} placeholder="Describe the issue..." rows={3} required
                   className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white resize-none outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" autoFocus />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-charcoal mb-2 block">Requested date (optional)</label>
+                <input type="date" value={reqDate} onChange={(e) => setReqDate(e.target.value)}
+                  className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors" />
               </div>
 
               <button type="submit" disabled={saving || !reqDescription.trim() || !reqUnitId}

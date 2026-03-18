@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { Expense, Property } from "@/lib/types";
-import { Receipt, DollarSign, Plus, X, Trash2, Building2 } from "lucide-react";
+import { canTrackExpenses } from "@/lib/plans";
+import { Receipt, DollarSign, Plus, X, Trash2, Building2, Download } from "lucide-react";
+import { useDashboard } from "../layout";
 
 const EXPENSE_CATEGORIES = [
   { key: "repair", label: "Repair" },
@@ -15,6 +17,7 @@ const EXPENSE_CATEGORIES = [
 
 export default function ExpensesPage() {
   const supabase = createClient();
+  const { profile, showUpgradeModal } = useDashboard();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +94,39 @@ export default function ExpensesPage() {
     return <div className="flex items-center justify-center py-20"><div className="w-7 h-7 border-3 border-brand/20 border-t-brand rounded-full animate-spin" /></div>;
   }
 
+  const plan = profile?.plan || "starter";
+  if (!canTrackExpenses(plan)) {
+    return (
+      <div className="text-center py-20">
+        <div className="w-14 h-14 rounded-2xl bg-brand-faint flex items-center justify-center mx-auto mb-4">
+          <Receipt className="w-7 h-7 text-brand" strokeWidth={1.6} />
+        </div>
+        <h2 className="text-xl font-bold text-charcoal mb-2" style={{ fontFamily: "var(--font-display)" }}>Expense tracking</h2>
+        <p className="text-sm text-charcoal-secondary mb-6 max-w-sm mx-auto">Track property expenses, vendors, and categories. Available on Essential and Pro plans.</p>
+        <button onClick={() => showUpgradeModal("expenses")} className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors">
+          Upgrade to unlock
+        </button>
+      </div>
+    );
+  }
+
+  function handleExportCSV() {
+    const headers = ["Date", "Description", "Amount", "Category", "Vendor", "Property"];
+    const rows = expenses.map((exp) => {
+      const prop = properties.find((p) => p.id === exp.property_id);
+      const esc = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+      return [exp.date, esc(exp.description), Number(exp.amount).toFixed(2), exp.category, esc(exp.vendor || ""), esc(prop?.name || "")].join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `proptrack-expenses-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -98,13 +134,18 @@ export default function ExpensesPage() {
           <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>Expenses</h1>
           <p className="text-sm text-charcoal-secondary mt-1">{expenses.length} expenses · ${total.toLocaleString("en-US", { minimumFractionDigits: 2 })} total</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 text-sm font-medium bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-xl transition-colors">
-          <Plus className="w-4 h-4" />Add expense
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 text-sm font-medium text-charcoal-secondary hover:text-charcoal border border-warm-300 px-4 py-2 rounded-xl transition-colors">
+            <Download className="w-4 h-4" />Export
+          </button>
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 text-sm font-medium bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-xl transition-colors">
+            <Plus className="w-4 h-4" />Add expense
+          </button>
+        </div>
       </div>
 
       {/* Summary card */}
-      <div className="bg-white rounded-2xl border border-warm-300/50 p-5 mb-6">
+      <div className="bg-surface rounded-2xl border border-warm-300/50 p-5 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center">
             <DollarSign className="w-5 h-5 text-accent" strokeWidth={1.8} />
@@ -117,7 +158,7 @@ export default function ExpensesPage() {
       </div>
 
       {expenses.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-warm-300/50 p-8 text-center">
+        <div className="bg-surface rounded-2xl border border-warm-300/50 p-8 text-center">
           <Receipt className="w-8 h-8 text-charcoal-tertiary mx-auto mb-3" strokeWidth={1.5} />
           <p className="text-sm text-charcoal-secondary mb-3">No expenses logged yet.</p>
           <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors">
@@ -127,7 +168,7 @@ export default function ExpensesPage() {
       ) : (
         <div className="space-y-2">
           {expenses.map((exp) => (
-            <div key={exp.id} className="bg-white rounded-xl border border-warm-300/50 px-4 py-3 flex items-center justify-between group">
+            <div key={exp.id} className="bg-surface rounded-xl border border-warm-300/50 px-4 py-3 flex items-center justify-between group">
               <div>
                 <p className="text-sm font-medium text-charcoal">{exp.description}</p>
                 <p className="text-xs text-charcoal-tertiary mt-0.5">
@@ -148,7 +189,7 @@ export default function ExpensesPage() {
       {/* Add Expense Modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
+          <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">Add expense</h3>
               <button onClick={() => setShowAdd(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
