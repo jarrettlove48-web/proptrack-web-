@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PropTrack — Maintenance tracking for small landlords",
+  title: "PropTrack — Property management for independent landlords",
   description:
-    "Built for the landlord next door, not a property empire. Track maintenance requests, manage tenants, and log expenses — all in one place.",
+    "Skip the property management company. DIY with PropTrack. Maintenance tracking, tenant communication, expenses, and a full tenant CRM — built for landlords with 1–5 units.",
   metadataBase: new URL("https://app.proptrack.app"),
   openGraph: {
     title: "PropTrack",
-    description: "Maintenance tracking for small landlords",
+    description: "Property management for independent landlords",
     siteName: "PropTrack",
   },
   manifest: "/manifest.json",

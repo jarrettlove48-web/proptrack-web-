@@ -6,7 +6,9 @@ import {
   Building2,
   Wrench,
   MessageCircle,
-  Shield,
+  Receipt,
+  Users,
+  LayoutDashboard,
   ArrowRight,
   Check,
 } from "lucide-react";
@@ -28,10 +30,10 @@ const plans = [
     external: false,
     featured: false,
     features: [
-      "Maintenance requests",
+      "Maintenance request system",
       "Tenant portal & invites",
       "In-app messaging",
-      "Request status tracking",
+      "Request history & status tracking",
     ],
   },
   {
@@ -45,10 +47,10 @@ const plans = [
     featured: true,
     features: [
       "Everything in Starter",
-      "Expense tracking",
-      "Activity log",
-      "Email notifications",
+      "Expense tracking + CSV export",
+      "Calendar & lease reminders",
       "Category & vendor tagging",
+      "Activity log",
       "Priority support",
     ],
   },
@@ -63,10 +65,10 @@ const plans = [
     featured: false,
     features: [
       "Everything in Essential",
-      "Recurring expenses",
-      "Data export (CSV)",
-      "Custom categories",
       "Multi-property dashboard",
+      "Recurring expenses",
+      "Custom categories",
+      "Data export (CSV)",
       "Phone & email support",
     ],
   },
@@ -131,20 +133,21 @@ export default async function HomePage() {
       <main className="max-w-6xl mx-auto px-6 pt-16 pb-24">
         <div className="max-w-2xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-brand-faint text-brand-dark text-sm font-medium px-4 py-2 rounded-full mb-8">
-            <Shield className="w-4 h-4" />
-            Now available on web — no download needed
+            <Building2 className="w-4 h-4" />
+            Your personal property management system
           </div>
 
           <h1
             className="text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight mb-6"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Maintenance tracking for the landlord next door
+            Skip the property management company. DIY with PropTrack.
           </h1>
 
           <p className="text-lg text-charcoal-secondary leading-relaxed mb-10 max-w-lg mx-auto">
-            Track requests, message tenants, and log expenses for your 1–5 unit
-            property. No spreadsheets. No text chains. No empire required.
+            Maintenance tracking, tenant communication, expense management, and
+            a full tenant CRM — built for independent landlords with 1–5 units.
+            Not 50.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -163,40 +166,69 @@ export default async function HomePage() {
         </div>
 
         {/* Feature highlights */}
-        <div className="grid md:grid-cols-3 gap-6 mt-24 max-w-4xl mx-auto">
-          {[
-            {
-              icon: Wrench,
-              title: "Maintenance requests",
-              desc: "Tenants submit requests. You track, respond, and resolve — all in one place.",
-            },
-            {
-              icon: MessageCircle,
-              title: "Built-in messaging",
-              desc: "No more text chains. Every conversation is tied to a specific request.",
-            },
-            {
-              icon: Building2,
-              title: "Property dashboard",
-              desc: "See all your units, tenants, open requests, and expenses at a glance.",
-            },
-          ].map((f) => (
-            <div
-              key={f.title}
-              className="bg-white rounded-2xl p-6 border border-warm-300/60"
+        <div className="mt-24 max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2
+              className="text-3xl font-bold text-charcoal mb-3"
+              style={{ fontFamily: "var(--font-display)" }}
             >
-              <div className="w-10 h-10 rounded-xl bg-brand-faint flex items-center justify-center mb-4">
-                <f.icon
-                  className="w-5 h-5 text-brand"
-                  strokeWidth={1.8}
-                />
+              Everything you need. Nothing you don&apos;t.
+            </h2>
+            <p className="text-charcoal-secondary">
+              Designed around the exact workflow of landlords with 1–5 units.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Wrench,
+                title: "Maintenance tracking",
+                desc: "Tenants submit requests in seconds. You track, respond, and resolve — with a full paper trail for every issue.",
+              },
+              {
+                icon: MessageCircle,
+                title: "Tenant communication hub",
+                desc: "Stop managing your rentals with text messages. Every conversation is tied to a specific request.",
+              },
+              {
+                icon: Receipt,
+                title: "Expense tracking",
+                desc: "Log repair costs by property, unit, and category. Export a tax-ready spreadsheet in seconds.",
+              },
+              {
+                icon: Users,
+                title: "Tenant CRM",
+                desc: "Contact history, move-in dates, lease terms, and full request history per unit. All in one place.",
+              },
+              {
+                icon: LayoutDashboard,
+                title: "Property dashboard",
+                desc: "See all your units, tenants, open requests, and expenses at a glance. Your rentals, your rules.",
+              },
+              {
+                icon: Building2,
+                title: "Tenant portal & invites",
+                desc: "Send an invite code. Tenant signs in and lands in their portal — no app download required.",
+              },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className="bg-white rounded-2xl p-6 border border-warm-300/60"
+              >
+                <div className="w-10 h-10 rounded-xl bg-brand-faint flex items-center justify-center mb-4">
+                  <f.icon
+                    className="w-5 h-5 text-brand"
+                    strokeWidth={1.8}
+                  />
+                </div>
+                <h3 className="font-semibold text-charcoal mb-1.5">{f.title}</h3>
+                <p className="text-sm text-charcoal-secondary leading-relaxed">
+                  {f.desc}
+                </p>
               </div>
-              <h3 className="font-semibold text-charcoal mb-1.5">{f.title}</h3>
-              <p className="text-sm text-charcoal-secondary leading-relaxed">
-                {f.desc}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Pricing */}
@@ -205,10 +237,10 @@ export default async function HomePage() {
             className="text-3xl font-bold text-charcoal mb-3"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Simple pricing
+            Honest pricing. No surprises.
           </h2>
           <p className="text-charcoal-secondary mb-12">
-            Start free. Upgrade when you grow.
+            Start free. Upgrade when you&apos;re ready. Cancel anytime.
           </p>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
@@ -284,12 +316,32 @@ export default async function HomePage() {
             ))}
           </div>
         </div>
+
+        {/* Bottom CTA */}
+        <div className="mt-24 max-w-2xl mx-auto text-center">
+          <h2
+            className="text-3xl font-bold text-charcoal mb-4"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Your rentals. Your rules. No property manager needed.
+          </h2>
+          <p className="text-charcoal-secondary mb-8">
+            Free for your first unit — no credit card required.
+          </p>
+          <Link
+            href="/auth?mode=signup"
+            className="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-xl text-base transition-colors"
+          >
+            Get started free
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-warm-300/60 py-8 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-charcoal-tertiary">
-          <span>&copy; {new Date().getFullYear()} PropTrack</span>
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-charcoal-tertiary">
+          <span>&copy; {new Date().getFullYear()} PropTrack. Built for independent landlords.</span>
           <a
             href="https://proptrack.app"
             className="hover:text-charcoal transition-colors"
