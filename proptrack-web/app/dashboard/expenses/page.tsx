@@ -31,6 +31,7 @@ export default function ExpensesPage() {
   const [expVendor, setExpVendor] = useState("");
   const [expPropertyId, setExpPropertyId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -51,11 +52,18 @@ export default function ExpensesPage() {
     e.preventDefault();
     if (!expDesc.trim() || !expAmount || !expPropertyId) return;
     setSaving(true);
+    setSaveError("");
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSaving(false); setSaveError("You must be logged in."); return; }
 
     const amount = parseFloat(expAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setSaving(false);
+      setSaveError("Please enter a valid amount.");
+      return;
+    }
+
     const { error } = await supabase.from("expenses").insert({
       owner_id: user.id,
       property_id: expPropertyId,
@@ -66,19 +74,24 @@ export default function ExpensesPage() {
       vendor: expVendor.trim() || null,
     });
 
-    if (!error) {
-      const prop = properties.find((p) => p.id === expPropertyId);
-      await supabase.from("activities").insert({
-        owner_id: user.id,
-        type: "expense_added",
-        title: "Expense logged",
-        subtitle: `$${amount.toFixed(2)} - ${prop?.name || "property"}`,
-      });
+    if (error) {
+      setSaving(false);
+      setSaveError(error.message || "Failed to add expense. Please try again.");
+      return;
     }
+
+    const prop = properties.find((p) => p.id === expPropertyId);
+    await supabase.from("activities").insert({
+      owner_id: user.id,
+      type: "expense_added",
+      title: "Expense logged",
+      subtitle: `$${amount.toFixed(2)} - ${prop?.name || "property"}`,
+    });
 
     setExpDesc(""); setExpAmount(""); setExpVendor(""); setExpCategory("repair");
     setExpDate(new Date().toISOString().split("T")[0]);
     setShowAdd(false); setSaving(false);
+    setSaveError("");
     fetchData();
   }
 
@@ -192,8 +205,12 @@ export default function ExpensesPage() {
           <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">Add expense</h3>
-              <button onClick={() => setShowAdd(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowAdd(false); setSaveError(""); }} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
             </div>
+
+            {saveError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-danger-light text-danger text-sm font-medium">{saveError}</div>
+            )}
 
             <form onSubmit={handleAddExpense} className="space-y-4">
               <div>

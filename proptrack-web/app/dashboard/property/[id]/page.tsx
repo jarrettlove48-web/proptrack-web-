@@ -32,6 +32,7 @@ export default function PropertyDetailPage() {
   const [moveInDate, setMoveInDate] = useState("");
   const [isOccupied, setIsOccupied] = useState(false);
   const [savingUnit, setSavingUnit] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const fetchData = useCallback(async () => {
     const [propRes, unitRes, reqRes] = await Promise.all([
@@ -51,9 +52,10 @@ export default function PropertyDetailPage() {
     e.preventDefault();
     if (!unitLabel.trim() || !property) return;
     setSavingUnit(true);
+    setSaveError("");
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setSavingUnit(false); setSaveError("You must be logged in."); return; }
 
     const { error } = await supabase.from("units").insert({
       property_id: property.id,
@@ -66,20 +68,25 @@ export default function PropertyDetailPage() {
       is_occupied: isOccupied,
     });
 
-    if (!error) {
-      // Update property unit count
-      await supabase.from("properties").update({ unit_count: units.length + 1 }).eq("id", property.id);
-      await supabase.from("activities").insert({
-        owner_id: user.id,
-        type: "unit_added",
-        title: "Unit added",
-        subtitle: `${unitLabel.trim()} at ${property.name}`,
-      });
+    if (error) {
+      setSavingUnit(false);
+      setSaveError(error.message || "Failed to add unit. Please try again.");
+      return;
     }
+
+    // Update property unit count
+    await supabase.from("properties").update({ unit_count: units.length + 1 }).eq("id", property.id);
+    await supabase.from("activities").insert({
+      owner_id: user.id,
+      type: "unit_added",
+      title: "Unit added",
+      subtitle: `${unitLabel.trim()} at ${property.name}`,
+    });
 
     setUnitLabel(""); setTenantName(""); setTenantEmail(""); setTenantPhone("");
     setMoveInDate(""); setIsOccupied(false); setShowAddUnit(false);
     setSavingUnit(false);
+    setSaveError("");
     fetchData();
   }
 
@@ -229,8 +236,12 @@ export default function PropertyDetailPage() {
           <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-charcoal">Add unit</h3>
-              <button onClick={() => setShowAddUnit(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowAddUnit(false); setSaveError(""); }} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
             </div>
+
+            {saveError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-danger-light text-danger text-sm font-medium">{saveError}</div>
+            )}
 
             <form onSubmit={handleAddUnit} className="space-y-4">
               <div>
