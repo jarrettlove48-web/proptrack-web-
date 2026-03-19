@@ -14,6 +14,7 @@ import {
 
 type EditableUnitField = "tenant_name" | "tenant_email" | "tenant_phone" | "lease_end_date";
 type EditableTenantField = "name" | "email" | "phone" | "move_in_date" | "lease_start" | "lease_end";
+type EditablePropertyField = "name" | "address";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,11 @@ export default function PropertyDetailPage() {
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantEmail, setNewTenantEmail] = useState("");
   const [newTenantPhone, setNewTenantPhone] = useState("");
+
+  // Inline editing for property fields
+  const [editingPropertyField, setEditingPropertyField] = useState<EditablePropertyField | null>(null);
+  const [editPropertyValue, setEditPropertyValue] = useState("");
+  const [savingProperty, setSavingProperty] = useState(false);
 
   // Add unit modal
   const [showAddUnit, setShowAddUnit] = useState(false);
@@ -120,6 +126,30 @@ export default function PropertyDetailPage() {
 
   function cancelTenantEdit() {
     setEditingTenant(null); setEditingTenantField(null); setEditTenantValue("");
+  }
+
+  // --- Property field inline editing ---
+  function startEditProperty(field: EditablePropertyField) {
+    if (!property) return;
+    setEditingPropertyField(field);
+    setEditPropertyValue(property[field] || "");
+  }
+
+  async function savePropertyEdit() {
+    if (!editingPropertyField || !property) return;
+    const value = editPropertyValue.trim();
+    if (editingPropertyField === "name" && !value) return; // name is required
+    setSavingProperty(true);
+    await supabase.from("properties").update({ [editingPropertyField]: value }).eq("id", property.id);
+    setEditingPropertyField(null);
+    setEditPropertyValue("");
+    setSavingProperty(false);
+    fetchData();
+  }
+
+  function cancelPropertyEdit() {
+    setEditingPropertyField(null);
+    setEditPropertyValue("");
   }
 
   // --- Add tenant ---
@@ -308,9 +338,44 @@ export default function PropertyDetailPage() {
         <div className="w-12 h-12 rounded-xl bg-brand-faint flex items-center justify-center">
           <Building2 className="w-6 h-6 text-brand" strokeWidth={1.8} />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>{property.name}</h1>
-          <p className="text-sm text-charcoal-secondary">{property.address || "No address"} · {units.length} unit{units.length !== 1 ? "s" : ""} · {openRequests.length} open</p>
+        <div className="flex-1 min-w-0">
+          {editingPropertyField === "name" ? (
+            <div className="flex items-center gap-2">
+              <input type="text" value={editPropertyValue} onChange={(e) => setEditPropertyValue(e.target.value)}
+                placeholder="Property name" autoFocus
+                className="text-2xl font-bold text-charcoal bg-transparent outline-none border-b-2 border-brand w-full"
+                style={{ fontFamily: "var(--font-display)" }}
+                onKeyDown={(e) => { if (e.key === "Enter") savePropertyEdit(); if (e.key === "Escape") cancelPropertyEdit(); }} />
+              <button onClick={savePropertyEdit} disabled={savingProperty || !editPropertyValue.trim()} className="text-brand hover:text-brand-dark"><Check className="w-5 h-5" /></button>
+              <button onClick={cancelPropertyEdit} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group">
+              <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>{property.name}</h1>
+              <button onClick={() => startEditProperty("name")}
+                className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-100">
+                <Pencil className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          {editingPropertyField === "address" ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input type="text" value={editPropertyValue} onChange={(e) => setEditPropertyValue(e.target.value)}
+                placeholder="Property address" autoFocus
+                className="text-sm text-charcoal-secondary bg-transparent outline-none border-b border-brand flex-1"
+                onKeyDown={(e) => { if (e.key === "Enter") savePropertyEdit(); if (e.key === "Escape") cancelPropertyEdit(); }} />
+              <button onClick={savePropertyEdit} disabled={savingProperty} className="text-brand hover:text-brand-dark"><Check className="w-4 h-4" /></button>
+              <button onClick={cancelPropertyEdit} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-4 h-4" /></button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group mt-0.5">
+              <p className="text-sm text-charcoal-secondary">{property.address || <span className="italic text-charcoal-tertiary">No address</span>} · {units.length} unit{units.length !== 1 ? "s" : ""} · {openRequests.length} open</p>
+              <button onClick={() => startEditProperty("address")}
+                className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-100">
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
