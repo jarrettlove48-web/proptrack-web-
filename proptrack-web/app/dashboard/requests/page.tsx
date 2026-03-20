@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { MaintenanceRequest, RequestStatus, RequestCategory, Property, Unit, Contractor, RequestMedia } from "@/lib/types";
 import { STATUS_LABELS, CATEGORY_LABELS, CONTRACTOR_CATEGORY_LABELS, CONTRACTOR_STATUS_LABELS, REQUEST_TO_CONTRACTOR_CATEGORY } from "@/lib/types";
-import { Wrench, Filter, Plus, X, Building2, Calendar, HardHat, UserCheck, ChevronDown } from "lucide-react";
+import { Wrench, Filter, Plus, X, Building2, Calendar, HardHat, UserCheck, ChevronDown, Clock } from "lucide-react";
 import { useDashboard } from "../layout";
+import { sendNotification } from "@/lib/notify";
 
 const CATEGORIES: { key: RequestCategory; label: string }[] = [
   { key: "plumbing", label: "Plumbing" },
@@ -140,6 +141,24 @@ export default function RequestsPage() {
         subtitle: `${contractor.first_name} ${contractor.last_name}`,
         related_id: requestId,
       });
+
+      // Email the contractor
+      if (contractor.email) {
+        const req = requests.find((r) => r.id === requestId);
+        sendNotification({
+          type: "contractor_assigned",
+          recipientEmail: contractor.email,
+          recipientName: `${contractor.first_name} ${contractor.last_name}`,
+          data: {
+            category: CATEGORY_LABELS[req?.category || "other"],
+            description: req?.description || "",
+            propertyName: req?.property_name || "",
+            unitLabel: req?.unit_label || "",
+            tenantName: req?.tenant_name || "",
+            portalUrl: `${window.location.origin}/contractor`,
+          },
+        });
+      }
     }
 
     setAssigningId(null);
@@ -242,6 +261,16 @@ export default function RequestsPage() {
                       {req.service_date && (
                         <span className="text-xs text-success flex items-center gap-1">
                           <Calendar className="w-3 h-3" />Service: {new Date(req.service_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      {req.confirmed_time && (
+                        <span className="text-xs text-success flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />Scheduled: {new Date(req.confirmed_time).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at {new Date(req.confirmed_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      )}
+                      {req.proposed_times && (req.proposed_times as any[]).length > 0 && !req.confirmed_time && (
+                        <span className="text-xs text-charcoal-tertiary flex items-center gap-1">
+                          <Clock className="w-3 h-3" />{(req.proposed_times as any[]).length} time{(req.proposed_times as any[]).length !== 1 ? "s" : ""} proposed
                         </span>
                       )}
                     </div>

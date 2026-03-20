@@ -58,6 +58,7 @@ export default function TenantPortalPage() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [timeSlots, setTimeSlots] = useState<{ date: string; startTime: string; endTime: string }[]>([]);
 
   // Selected request for messages
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
@@ -218,6 +219,7 @@ export default function TenantPortalPage() {
       tenant_name: unit.tenant_name || userName,
       unit_label: unit.label,
       property_name: property.name,
+      proposed_times: timeSlots.length > 0 ? timeSlots : null,
     }).select("id").single();
 
     if (reqError || !reqData) {
@@ -262,6 +264,7 @@ export default function TenantPortalPage() {
     setNewDescription("");
     setPhotoFiles([]);
     setPhotoPreviews([]);
+    setTimeSlots([]);
     setUploadProgress("");
     setShowNewRequest(false);
     setSubmitting(false);
@@ -478,6 +481,45 @@ export default function TenantPortalPage() {
                   )}
                 </div>
 
+                {/* Preferred times (optional) */}
+                <div>
+                  <label className="text-sm font-medium text-charcoal mb-2 block">
+                    Preferred times <span className="text-charcoal-tertiary font-normal">(optional, up to 3)</span>
+                  </label>
+
+                  {timeSlots.map((slot, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-2">
+                      <input type="date" value={slot.date} onChange={(e) => {
+                        const updated = [...timeSlots];
+                        updated[i] = { ...updated[i], date: e.target.value };
+                        setTimeSlots(updated);
+                      }} className="flex-1 border border-warm-300 rounded-xl px-3 py-2 text-sm text-charcoal bg-warm-white outline-none focus:border-brand" />
+                      <input type="time" value={slot.startTime} onChange={(e) => {
+                        const updated = [...timeSlots];
+                        updated[i] = { ...updated[i], startTime: e.target.value };
+                        setTimeSlots(updated);
+                      }} className="w-24 border border-warm-300 rounded-xl px-3 py-2 text-sm text-charcoal bg-warm-white outline-none focus:border-brand" />
+                      <span className="text-xs text-charcoal-tertiary">to</span>
+                      <input type="time" value={slot.endTime} onChange={(e) => {
+                        const updated = [...timeSlots];
+                        updated[i] = { ...updated[i], endTime: e.target.value };
+                        setTimeSlots(updated);
+                      }} className="w-24 border border-warm-300 rounded-xl px-3 py-2 text-sm text-charcoal bg-warm-white outline-none focus:border-brand" />
+                      <button type="button" onClick={() => setTimeSlots(timeSlots.filter((_, j) => j !== i))}
+                        className="p-1 text-charcoal-tertiary hover:text-danger transition-colors shrink-0">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {timeSlots.length < 3 && (
+                    <button type="button" onClick={() => setTimeSlots([...timeSlots, { date: "", startTime: "09:00", endTime: "11:00" }])}
+                      className="flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand-dark transition-colors">
+                      <Plus className="w-4 h-4" />Add a preferred time
+                    </button>
+                  )}
+                </div>
+
                 {uploadProgress && (
                   <div className="flex items-center gap-2 text-sm text-brand">
                     <div className="w-4 h-4 border-2 border-brand/20 border-t-brand rounded-full animate-spin" />
@@ -560,6 +602,21 @@ export default function TenantPortalPage() {
                             year: "numeric",
                           })}
                         </p>
+
+                        {/* Scheduling status */}
+                        {req.confirmed_time && (
+                          <div className="flex items-center gap-2 bg-success-light rounded-xl px-3 py-2 mb-3">
+                            <CheckCircle className="w-3.5 h-3.5 text-success" />
+                            <span className="text-xs font-medium text-success">
+                              Scheduled: {new Date(req.confirmed_time).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at {new Date(req.confirmed_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        )}
+                        {req.proposed_times && (req.proposed_times as any[]).length > 0 && !req.confirmed_time && (
+                          <p className="text-xs text-charcoal-tertiary mb-3">
+                            {(req.proposed_times as any[]).length} time{(req.proposed_times as any[]).length !== 1 ? "s" : ""} proposed — waiting for contractor
+                          </p>
+                        )}
 
                         {/* Message thread button */}
                         <button

@@ -59,6 +59,9 @@ export interface MaintenanceRequest {
   requested_date: string | null;
   assigned_contractor_id: string | null;
   contractor_status: ContractorStatus | null;
+  proposed_times: ProposedTimeSlot[] | null;
+  confirmed_time: string | null;
+  confirmed_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -211,6 +214,12 @@ export const CONTRACTOR_STATUS_LABELS: Record<ContractorStatus, string> = {
   accepted: "Accepted",
   declined: "Declined",
 };
+
+export interface ProposedTimeSlot {
+  date: string;      // "YYYY-MM-DD"
+  startTime: string; // "HH:MM" (24h)
+  endTime: string;   // "HH:MM" (24h)
+}
 
 /** Maps request category → best-match contractor category */
 export const REQUEST_TO_CONTRACTOR_CATEGORY: Record<RequestCategory, ContractorCategory> = {

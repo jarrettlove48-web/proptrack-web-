@@ -176,6 +176,16 @@ export default function CalendarPage() {
           request: req,
         });
       }
+      if (req.confirmed_time) {
+        push({
+          id: `req-${req.id}-scheduled`,
+          date: toDateStr(req.confirmed_time),
+          title: `Scheduled: ${CATEGORY_LABELS[req.category]} — ${req.property_name}`,
+          subtitle: `${req.description} · ${req.unit_label}`,
+          type: "maintenance",
+          request: req,
+        });
+      }
     }
 
     // Custom calendar events

@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
-import type { MaintenanceRequest, Contractor, RequestMedia, Message } from "@/lib/types";
+import type { MaintenanceRequest, Contractor, RequestMedia, Message, ProposedTimeSlot } from "@/lib/types";
 import { CATEGORY_LABELS, CONTRACTOR_STATUS_LABELS } from "@/lib/types";
+import { sendNotification } from "@/lib/notify";
 import {
   Building2,
   HardHat,
@@ -120,7 +121,50 @@ export default function ContractorPortalPage() {
       contractor_status: status,
       updated_at: new Date().toISOString(),
     }).eq("id", requestId);
+
+    // Notify landlord
+    const req = requests.find((r) => r.id === requestId);
+    if (req) {
+      const { data: ownerProfile } = await supabase
+        .from("profiles")
+        .select("email, name")
+        .eq("id", req.owner_id)
+        .single();
+
+      if (ownerProfile?.email) {
+        sendNotification({
+          type: status === "accepted" ? "contractor_accepted" : "contractor_declined",
+          recipientEmail: ownerProfile.email,
+          recipientName: ownerProfile.name || "Landlord",
+          data: {
+            contractorName: contractor ? `${contractor.first_name} ${contractor.last_name}` : "Contractor",
+            category: CATEGORY_LABELS[req.category],
+            description: req.description,
+            propertyName: req.property_name,
+            dashboardUrl: `${window.location.origin}/dashboard/requests`,
+          },
+        });
+      }
+    }
+
     fetchData();
+  }
+
+  async function confirmTimeSlot(requestId: string, slot: ProposedTimeSlot) {
+    const confirmedTime = new Date(`${slot.date}T${slot.startTime}:00`).toISOString();
+    await supabase.from("maintenance_requests").update({
+      confirmed_time: confirmedTime,
+      confirmed_by: userId,
+      updated_at: new Date().toISOString(),
+    }).eq("id", requestId);
+    fetchData();
+  }
+
+  function formatTime(time24: string): string {
+    const [h, m] = time24.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
   }
 
   async function handleSendMessage(e: React.FormEvent) {
@@ -246,6 +290,45 @@ export default function ContractorPortalPage() {
                           <img src={m.media_url} alt="Request photo" className="w-full h-full object-cover" />
                         </a>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Proposed times */}
+                  {req.proposed_times && (req.proposed_times as ProposedTimeSlot[]).length > 0 && !req.confirmed_time && (
+                    <div className="mt-3 pt-3 border-t border-warm-300/30">
+                      <p className="text-xs font-semibold text-charcoal-secondary mb-2">Preferred times from tenant</p>
+                      <div className="space-y-1.5">
+                        {(req.proposed_times as ProposedTimeSlot[]).map((slot, i) => (
+                          <div key={i} className="flex items-center justify-between bg-warm-white rounded-xl px-3 py-2">
+                            <div className="text-xs text-charcoal">
+                              <span className="font-medium">
+                                {new Date(slot.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                              </span>
+                              <span className="text-charcoal-tertiary ml-2">
+                                {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
+                              </span>
+                            </div>
+                            {req.contractor_status === "accepted" && (
+                              <button onClick={() => confirmTimeSlot(req.id, slot)}
+                                className="text-xs font-semibold text-brand hover:text-brand-dark transition-colors">
+                                Select
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confirmed time */}
+                  {req.confirmed_time && (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2 bg-success-light rounded-xl px-3 py-2">
+                        <CheckCircle className="w-3.5 h-3.5 text-success" />
+                        <span className="text-xs font-medium text-success">
+                          Scheduled: {new Date(req.confirmed_time).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at {new Date(req.confirmed_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      </div>
                     </div>
                   )}
 
