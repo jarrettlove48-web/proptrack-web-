@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import { Building2, HardHat, ArrowRight, AlertTriangle } from "lucide-react";
 
 export default function ContractorInvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-warm-white flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-brand/20 border-t-brand rounded-full animate-spin" />
+      </div>
+    }>
+      <ContractorInviteContent />
+    </Suspense>
+  );
+}
+
+function ContractorInviteContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const codeFromUrl = searchParams.get("code") || "";
