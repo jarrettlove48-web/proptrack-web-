@@ -1,7 +1,13 @@
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend && process.env.RESEND_API_KEY) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 const FROM_ADDRESS = process.env.RESEND_FROM_ADDRESS || "PropTrack <notifications@proptrack.app>";
 
 type NotificationType = "contractor_assigned" | "contractor_accepted" | "contractor_declined";
@@ -27,6 +33,11 @@ export async function POST(request: Request) {
     }
 
     const { subject, html } = buildEmail(body.type, body.recipientName, body.data);
+
+    const resend = getResend();
+    if (!resend) {
+      return NextResponse.json({ success: true, skipped: true });
+    }
 
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
