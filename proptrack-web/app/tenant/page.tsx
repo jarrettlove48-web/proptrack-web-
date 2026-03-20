@@ -24,6 +24,8 @@ import {
   MessageCircle,
   Home,
   X,
+  Camera,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const CATEGORIES: { key: RequestCategory; label: string }[] = [
@@ -52,6 +54,10 @@ export default function TenantPortalPage() {
   const [newCategory, setNewCategory] = useState<RequestCategory>("plumbing");
   const [newDescription, setNewDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Selected request for messages
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
@@ -175,12 +181,34 @@ export default function TenantPortalPage() {
     })();
   }, [selectedRequest, supabase]);
 
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const newFiles = [...photoFiles, ...files].slice(0, 5); // max 5 photos
+    setPhotoFiles(newFiles);
+    // Generate previews
+    const previews = newFiles.map((f) => URL.createObjectURL(f));
+    setPhotoPreviews((prev) => { prev.forEach(URL.revokeObjectURL); return previews; });
+  }
+
+  function removePhoto(index: number) {
+    const newFiles = photoFiles.filter((_, i) => i !== index);
+    setPhotoFiles(newFiles);
+    setPhotoPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
   async function handleSubmitRequest(e: React.FormEvent) {
     e.preventDefault();
     if (!unit || !property || !newDescription.trim()) return;
+    if (photoFiles.length === 0) return; // require at least one photo
     setSubmitting(true);
+    setUploadProgress("Creating request...");
 
-    await supabase.from("maintenance_requests").insert({
+    // 1. Insert the maintenance request
+    const { data: reqData, error: reqError } = await supabase.from("maintenance_requests").insert({
       unit_id: unit.id,
       property_id: property.id,
       owner_id: unit.owner_id,
@@ -190,9 +218,51 @@ export default function TenantPortalPage() {
       tenant_name: unit.tenant_name || userName,
       unit_label: unit.label,
       property_name: property.name,
-    });
+    }).select("id").single();
 
+    if (reqError || !reqData) {
+      setSubmitting(false);
+      setUploadProgress("");
+      return;
+    }
+
+    // 2. Upload photos to Supabase Storage
+    setUploadProgress("Uploading photos...");
+    const mediaRows: { request_id: string; media_url: string; media_type: string; uploaded_by: string }[] = [];
+
+    for (let i = 0; i < photoFiles.length; i++) {
+      const file = photoFiles[i];
+      const ext = file.name.split(".").pop() || "jpg";
+      const filePath = `${reqData.id}/${crypto.randomUUID()}.${ext}`;
+
+      setUploadProgress(`Uploading photo ${i + 1} of ${photoFiles.length}...`);
+
+      const { error: uploadErr } = await supabase.storage
+        .from("request-media")
+        .upload(filePath, file, { contentType: file.type });
+
+      if (!uploadErr) {
+        const { data: urlData } = supabase.storage.from("request-media").getPublicUrl(filePath);
+        mediaRows.push({
+          request_id: reqData.id,
+          media_url: urlData.publicUrl,
+          media_type: file.type.startsWith("video/") ? "video" : "image",
+          uploaded_by: userId,
+        });
+      }
+    }
+
+    // 3. Insert request_media rows
+    if (mediaRows.length > 0) {
+      await supabase.from("request_media").insert(mediaRows);
+    }
+
+    // Cleanup
+    photoPreviews.forEach(URL.revokeObjectURL);
     setNewDescription("");
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
+    setUploadProgress("");
     setShowNewRequest(false);
     setSubmitting(false);
     fetchData();
@@ -375,9 +445,49 @@ export default function TenantPortalPage() {
                   />
                 </div>
 
+                {/* Photo upload */}
+                <div>
+                  <label className="text-sm font-medium text-charcoal mb-2 block">
+                    Photos <span className="text-danger">*</span>
+                    <span className="text-charcoal-tertiary font-normal ml-1">(at least 1 required)</span>
+                  </label>
+
+                  {photoPreviews.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {photoPreviews.map((src, i) => (
+                        <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-warm-300/50 group">
+                          <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removePhoto(i)}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoSelect} className="hidden" />
+
+                  {photoFiles.length < 5 && (
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 text-sm font-medium text-brand hover:text-brand-dark transition-colors border border-dashed border-warm-300 rounded-xl px-4 py-3 w-full justify-center hover:border-brand">
+                      <Camera className="w-4 h-4" />
+                      {photoFiles.length === 0 ? "Add photos of the issue" : "Add more photos"}
+                      <span className="text-xs text-charcoal-tertiary">({photoFiles.length}/5)</span>
+                    </button>
+                  )}
+                </div>
+
+                {uploadProgress && (
+                  <div className="flex items-center gap-2 text-sm text-brand">
+                    <div className="w-4 h-4 border-2 border-brand/20 border-t-brand rounded-full animate-spin" />
+                    {uploadProgress}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={submitting || !newDescription.trim()}
+                  disabled={submitting || !newDescription.trim() || photoFiles.length === 0}
                   className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60"
                 >
                   {submitting ? "Submitting..." : "Submit request"}

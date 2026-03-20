@@ -18,6 +18,7 @@ import {
   ChevronRight,
   CalendarDays,
   ArrowUpRight,
+  HardHat,
 } from "lucide-react";
 
 interface DashboardContextType {
@@ -47,6 +48,7 @@ export function useDashboard() {
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Properties", icon: Building2 },
   { href: "/dashboard/requests", label: "Requests", icon: Wrench },
+  { href: "/dashboard/contractors", label: "Contractors", icon: HardHat },
   { href: "/dashboard/expenses", label: "Expenses", icon: Receipt },
   { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/dashboard/messages", label: "Messages", icon: MessageCircle },
@@ -156,6 +158,7 @@ export default function DashboardLayout({
     properties: `You can have up to ${limits.maxProperties} propert${limits.maxProperties === 1 ? "y" : "ies"} on the ${plan} plan.`,
     units: `You can have up to ${limits.maxUnits} units on the ${plan} plan.`,
     expenses: `Expense tracking is available on Essential and Pro plans.`,
+    contractors: `Preferred contractors are available on Essential (up to 5) and Pro (unlimited) plans.`,
   };
 
   if (loading) {

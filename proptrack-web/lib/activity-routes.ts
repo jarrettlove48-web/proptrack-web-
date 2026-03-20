@@ -33,6 +33,10 @@ export function getActivityRoute(activity: Activity, properties?: Property[]): s
       return `/dashboard/expenses`;
     case "request_created":
       return `/dashboard/requests`;
+    case "contractor_added":
+      return `/dashboard/contractors`;
+    case "contractor_assigned":
+      return `/dashboard/requests`;
     default:
       return null;
   }

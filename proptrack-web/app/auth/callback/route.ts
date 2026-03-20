@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const role = searchParams.get("role"); // "landlord" or "tenant"
   const inviteCode = searchParams.get("invite_code"); // from tenant invite flow
+  const contractorInviteCode = searchParams.get("contractor_invite_code"); // from contractor invite flow
 
   if (code) {
     const supabase = await createClient();
@@ -22,6 +23,27 @@ export async function GET(request: Request) {
           .select("role")
           .eq("id", user.id)
           .single();
+
+        // Contractor with invite code
+        if (contractorInviteCode) {
+          const { error: redeemErr } = await supabase.rpc("redeem_contractor_invite", {
+            code: contractorInviteCode,
+            uid: user.id,
+          });
+
+          if (!redeemErr) {
+            return NextResponse.redirect(`${origin}/contractor`);
+          }
+
+          return NextResponse.redirect(
+            `${origin}/contractor-invite?error=${encodeURIComponent(redeemErr?.message || "Failed to redeem invite code")}`
+          );
+        }
+
+        // Returning contractor
+        if (profile?.role === "contractor") {
+          return NextResponse.redirect(`${origin}/contractor`);
+        }
 
         // Tenant with invite code — redeem it regardless of new/returning
         if (inviteCode) {

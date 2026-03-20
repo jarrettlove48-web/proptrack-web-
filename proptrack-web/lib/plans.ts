@@ -12,9 +12,9 @@ export function getEffectivePlan(plan: PlanTier, email?: string, adminOverride?:
 }
 
 export const PLAN_LIMITS = {
-  starter: { maxProperties: 1, maxUnits: 3, expenseTracking: false },
-  essential: { maxProperties: 5, maxUnits: 15, expenseTracking: true },
-  pro: { maxProperties: Infinity, maxUnits: Infinity, expenseTracking: true },
+  starter: { maxProperties: 1, maxUnits: 3, expenseTracking: false, maxContractors: 0 },
+  essential: { maxProperties: 5, maxUnits: 15, expenseTracking: true, maxContractors: 5 },
+  pro: { maxProperties: Infinity, maxUnits: Infinity, expenseTracking: true, maxContractors: Infinity },
 } as const;
 
 export const STRIPE_URLS = {
@@ -40,6 +40,14 @@ export function canAddUnit(plan: PlanTier, currentCount: number): boolean {
 
 export function canTrackExpenses(plan: PlanTier): boolean {
   return PLAN_LIMITS[plan].expenseTracking;
+}
+
+export function canUseContractors(plan: PlanTier): boolean {
+  return PLAN_LIMITS[plan].maxContractors > 0;
+}
+
+export function canAddContractor(plan: PlanTier, currentCount: number): boolean {
+  return currentCount < PLAN_LIMITS[plan].maxContractors;
 }
 
 export function getUpgradeUrl(plan: PlanTier): string | null {

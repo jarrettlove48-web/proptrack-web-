@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
-import type { MaintenanceRequest, RequestStatus, RequestCategory, Property, Unit } from "@/lib/types";
-import { STATUS_LABELS, CATEGORY_LABELS } from "@/lib/types";
-import { Wrench, Filter, Plus, X, Building2, Calendar } from "lucide-react";
+import type { MaintenanceRequest, RequestStatus, RequestCategory, Property, Unit, Contractor, RequestMedia } from "@/lib/types";
+import { STATUS_LABELS, CATEGORY_LABELS, CONTRACTOR_CATEGORY_LABELS, CONTRACTOR_STATUS_LABELS, REQUEST_TO_CONTRACTOR_CATEGORY } from "@/lib/types";
+import { Wrench, Filter, Plus, X, Building2, Calendar, HardHat, UserCheck, ChevronDown } from "lucide-react";
+import { useDashboard } from "../layout";
 
 const CATEGORIES: { key: RequestCategory; label: string }[] = [
   { key: "plumbing", label: "Plumbing" },
@@ -16,11 +17,15 @@ const CATEGORIES: { key: RequestCategory; label: string }[] = [
 
 export default function RequestsPage() {
   const supabase = createClient();
+  const { profile } = useDashboard();
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [mediaByRequest, setMediaByRequest] = useState<Record<string, RequestMedia[]>>({});
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   // Add request modal
   const [showAdd, setShowAdd] = useState(false);
@@ -35,15 +40,31 @@ export default function RequestsPage() {
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [reqRes, propRes, unitRes] = await Promise.all([
+    const [reqRes, propRes, unitRes, conRes] = await Promise.all([
       supabase.from("maintenance_requests").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
       supabase.from("properties").select("*").eq("owner_id", user.id).order("name"),
       supabase.from("units").select("*").eq("owner_id", user.id).order("label"),
+      supabase.from("contractors").select("*").eq("owner_id", user.id).eq("is_active", true).order("first_name"),
     ]);
-    setRequests((reqRes.data || []) as MaintenanceRequest[]);
+    const reqs = (reqRes.data || []) as MaintenanceRequest[];
+    setRequests(reqs);
     setProperties((propRes.data || []) as Property[]);
     setUnits((unitRes.data || []) as Unit[]);
+    setContractors((conRes.data || []) as Contractor[]);
     if (propRes.data?.length && !reqPropertyId) setReqPropertyId(propRes.data[0].id);
+
+    // Fetch media for all requests that have IDs
+    const reqIds = reqs.map((r) => r.id);
+    if (reqIds.length > 0) {
+      const { data: mediaData } = await supabase.from("request_media").select("*").in("request_id", reqIds);
+      const grouped: Record<string, RequestMedia[]> = {};
+      (mediaData || []).forEach((m: RequestMedia) => {
+        if (!grouped[m.request_id]) grouped[m.request_id] = [];
+        grouped[m.request_id].push(m);
+      });
+      setMediaByRequest(grouped);
+    }
+
     setLoading(false);
   }, [supabase, reqPropertyId]);
 
@@ -102,6 +123,46 @@ export default function RequestsPage() {
     fetchData();
   }
 
+  async function assignContractor(requestId: string, contractorId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const contractor = contractors.find((c) => c.id === contractorId);
+    await supabase.from("maintenance_requests").update({
+      assigned_contractor_id: contractorId,
+      contractor_status: "pending",
+      updated_at: new Date().toISOString(),
+    }).eq("id", requestId);
+
+    if (user && contractor) {
+      await supabase.from("activities").insert({
+        owner_id: user.id,
+        type: "contractor_assigned",
+        title: "Contractor assigned",
+        subtitle: `${contractor.first_name} ${contractor.last_name}`,
+        related_id: requestId,
+      });
+    }
+
+    setAssigningId(null);
+    fetchData();
+  }
+
+  async function unassignContractor(requestId: string) {
+    await supabase.from("maintenance_requests").update({
+      assigned_contractor_id: null,
+      contractor_status: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", requestId);
+    fetchData();
+  }
+
+  /** Returns contractors sorted: matching category first, then the rest */
+  function getSortedContractors(category: RequestCategory) {
+    const matchCat = REQUEST_TO_CONTRACTOR_CATEGORY[category];
+    const matched = contractors.filter((c) => c.category === matchCat);
+    const others = contractors.filter((c) => c.category !== matchCat);
+    return { matched, others };
+  }
+
   const filtered = statusFilter === "all" ? requests : requests.filter((r) => r.status === statusFilter);
 
   if (loading) {
@@ -137,39 +198,138 @@ export default function RequestsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((req) => (
-            <div key={req.id} className="bg-surface rounded-2xl border border-warm-300/50 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <p className="font-medium text-charcoal">{req.description}</p>
-                  <div className="flex items-center gap-3 mt-2 flex-wrap">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>{CATEGORY_LABELS[req.category]}</span>
-                    <span className="text-xs text-charcoal-tertiary">{req.property_name} · {req.unit_label}</span>
-                    {req.tenant_name && <span className="text-xs text-charcoal-tertiary">by {req.tenant_name}</span>}
-                  </div>
-                  <p className="text-xs text-charcoal-tertiary mt-2">{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                    {req.requested_date && (
-                      <span className="text-xs text-charcoal-tertiary flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />Requested: {new Date(req.requested_date).toLocaleDateString()}
-                      </span>
+          {filtered.map((req) => {
+            const media = mediaByRequest[req.id] || [];
+            const assignedContractor = contractors.find((c) => c.id === req.assigned_contractor_id);
+            const isAssigning = assigningId === req.id;
+            const sorted = getSortedContractors(req.category);
+
+            return (
+              <div key={req.id} className="bg-surface rounded-2xl border border-warm-300/50 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="font-medium text-charcoal">{req.description}</p>
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>{CATEGORY_LABELS[req.category]}</span>
+                      <span className="text-xs text-charcoal-tertiary">{req.property_name} · {req.unit_label}</span>
+                      {req.tenant_name && <span className="text-xs text-charcoal-tertiary">by {req.tenant_name}</span>}
+                    </div>
+
+                    {/* Media thumbnails */}
+                    {media.length > 0 && (
+                      <div className="flex gap-2 mt-3">
+                        {media.slice(0, 4).map((m) => (
+                          <a key={m.id} href={m.media_url} target="_blank" rel="noopener noreferrer"
+                            className="w-16 h-16 rounded-lg overflow-hidden border border-warm-300/50 hover:border-brand transition-colors shrink-0">
+                            <img src={m.media_url} alt="Request photo" className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                        {media.length > 4 && (
+                          <div className="w-16 h-16 rounded-lg bg-warm-100 flex items-center justify-center text-xs font-semibold text-charcoal-secondary">
+                            +{media.length - 4}
+                          </div>
+                        )}
+                      </div>
                     )}
-                    {req.service_date && (
-                      <span className="text-xs text-success flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />Service: {new Date(req.service_date).toLocaleDateString()}
-                      </span>
-                    )}
+
+                    <p className="text-xs text-charcoal-tertiary mt-2">{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      {req.requested_date && (
+                        <span className="text-xs text-charcoal-tertiary flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />Requested: {new Date(req.requested_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      {req.service_date && (
+                        <span className="text-xs text-success flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />Service: {new Date(req.service_date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Contractor assignment section */}
+                    <div className="mt-3 pt-3 border-t border-warm-300/30">
+                      {assignedContractor ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <HardHat className="w-3.5 h-3.5 text-charcoal-tertiary" />
+                          <span className="text-xs font-medium text-charcoal">
+                            {assignedContractor.first_name} {assignedContractor.last_name}
+                          </span>
+                          {assignedContractor.company && (
+                            <span className="text-xs text-charcoal-tertiary">({assignedContractor.company})</span>
+                          )}
+                          {req.contractor_status && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cstatus-${req.contractor_status}`}>
+                              {CONTRACTOR_STATUS_LABELS[req.contractor_status]}
+                            </span>
+                          )}
+                          <button onClick={() => unassignContractor(req.id)}
+                            className="text-[10px] text-charcoal-tertiary hover:text-danger transition-colors ml-1">
+                            Remove
+                          </button>
+                        </div>
+                      ) : contractors.length > 0 ? (
+                        <div className="relative">
+                          <button onClick={() => setAssigningId(isAssigning ? null : req.id)}
+                            className="flex items-center gap-1.5 text-xs font-medium text-brand hover:text-brand-dark transition-colors">
+                            <HardHat className="w-3.5 h-3.5" />
+                            Assign contractor
+                            <ChevronDown className={`w-3 h-3 transition-transform ${isAssigning ? "rotate-180" : ""}`} />
+                          </button>
+
+                          {isAssigning && (
+                            <div className="absolute top-7 left-0 z-20 bg-surface border border-warm-300/50 rounded-xl shadow-lg w-72 max-h-60 overflow-y-auto">
+                              {sorted.matched.length > 0 && (
+                                <>
+                                  <p className="text-[10px] font-semibold text-charcoal-tertiary uppercase tracking-wider px-3 pt-3 pb-1">Best match</p>
+                                  {sorted.matched.map((c) => (
+                                    <button key={c.id} onClick={() => assignContractor(req.id, c.id)}
+                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-warm-100 transition-colors text-left">
+                                      <UserCheck className="w-3.5 h-3.5 text-success shrink-0" />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-medium text-charcoal truncate">{c.first_name} {c.last_name}</p>
+                                        <p className="text-[10px] text-charcoal-tertiary truncate">{CONTRACTOR_CATEGORY_LABELS[c.category]}{c.company ? ` · ${c.company}` : ""}</p>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </>
+                              )}
+                              {sorted.others.length > 0 && (
+                                <>
+                                  <p className="text-[10px] font-semibold text-charcoal-tertiary uppercase tracking-wider px-3 pt-3 pb-1">
+                                    {sorted.matched.length > 0 ? "Other contractors" : "Your contractors"}
+                                  </p>
+                                  {sorted.others.map((c) => (
+                                    <button key={c.id} onClick={() => assignContractor(req.id, c.id)}
+                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-warm-100 transition-colors text-left">
+                                      <HardHat className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-medium text-charcoal truncate">{c.first_name} {c.last_name}</p>
+                                        <p className="text-[10px] text-charcoal-tertiary truncate">{CONTRACTOR_CATEGORY_LABELS[c.category]}{c.company ? ` · ${c.company}` : ""}</p>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-charcoal-tertiary">
+                          <a href="/dashboard/contractors" className="text-brand hover:text-brand-dark">Add contractors</a> to assign them to requests
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  <select value={req.status} onChange={(e) => updateStatus(req.id, e.target.value as RequestStatus)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer status-${req.status}`}>
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
                 </div>
-                <select value={req.status} onChange={(e) => updateStatus(req.id, e.target.value as RequestStatus)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer status-${req.status}`}>
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                </select>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

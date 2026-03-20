@@ -127,6 +127,21 @@ html.dark input, html.dark textarea, html.dark select {
 .cat-appliance { background-color: var(--color-cat-appliance-bg); color: var(--color-cat-appliance); }
 .cat-other { background-color: var(--color-cat-other-bg); color: var(--color-cat-other); }
 
+/* Contractor category badge colors */
+.ccat-plumber { background-color: var(--color-cat-plumbing-bg); color: var(--color-cat-plumbing); }
+.ccat-electrician { background-color: var(--color-cat-electrical-bg); color: var(--color-cat-electrical); }
+.ccat-general_contractor { background-color: var(--color-cat-other-bg); color: var(--color-cat-other); }
+.ccat-landscaper { background-color: var(--color-success-light); color: var(--color-success); }
+.ccat-painter { background-color: var(--color-cat-appliance-bg); color: var(--color-cat-appliance); }
+.ccat-roofer { background-color: var(--color-info-light); color: var(--color-info); }
+.ccat-hvac_tech { background-color: var(--color-cat-hvac-bg); color: var(--color-cat-hvac); }
+.ccat-other { background-color: var(--color-cat-other-bg); color: var(--color-cat-other); }
+
+/* Contractor status badges */
+.cstatus-pending { background-color: var(--color-warning-light); color: var(--color-warning); }
+.cstatus-accepted { background-color: var(--color-success-light); color: var(--color-success); }
+.cstatus-declined { background-color: var(--color-danger-light); color: var(--color-danger); }
+
 /* Smooth page transitions */
 .page-enter {
   animation: fadeUp 0.3s ease-out;

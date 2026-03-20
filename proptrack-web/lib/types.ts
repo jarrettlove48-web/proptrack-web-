@@ -1,6 +1,6 @@
 export type RequestCategory = "plumbing" | "electrical" | "hvac" | "appliance" | "other";
 export type RequestStatus = "open" | "in_progress" | "resolved";
-export type UserRole = "landlord" | "tenant";
+export type UserRole = "landlord" | "tenant" | "contractor";
 export type PlanTier = "starter" | "essential" | "pro";
 
 export interface Profile {
@@ -57,6 +57,8 @@ export interface MaintenanceRequest {
   property_name: string;
   service_date: string | null;
   requested_date: string | null;
+  assigned_contractor_id: string | null;
+  contractor_status: ContractorStatus | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,7 +68,7 @@ export interface Message {
   request_id: string;
   sender_id: string;
   sender_name: string;
-  sender_role: "landlord" | "tenant";
+  sender_role: "landlord" | "tenant" | "contractor";
   body: string;
   created_at: string;
 }
@@ -151,4 +153,70 @@ export const CATEGORY_LABELS: Record<RequestCategory, string> = {
   hvac: "HVAC",
   appliance: "Appliance",
   other: "Other",
+};
+
+// Contractor types
+export type ContractorCategory =
+  | "plumber"
+  | "electrician"
+  | "general_contractor"
+  | "landscaper"
+  | "painter"
+  | "roofer"
+  | "hvac_tech"
+  | "other";
+
+export type ContractorStatus = "pending" | "accepted" | "declined";
+
+export interface Contractor {
+  id: string;
+  owner_id: string;
+  first_name: string;
+  last_name: string;
+  company: string | null;
+  website: string | null;
+  category: ContractorCategory;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  invite_code: string;
+  user_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RequestMedia {
+  id: string;
+  request_id: string;
+  media_url: string;
+  media_type: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export const CONTRACTOR_CATEGORY_LABELS: Record<ContractorCategory, string> = {
+  plumber: "Plumber",
+  electrician: "Electrician",
+  general_contractor: "General Contractor",
+  landscaper: "Landscaper",
+  painter: "Painter",
+  roofer: "Roofer",
+  hvac_tech: "HVAC Tech",
+  other: "Other",
+};
+
+export const CONTRACTOR_STATUS_LABELS: Record<ContractorStatus, string> = {
+  pending: "Pending",
+  accepted: "Accepted",
+  declined: "Declined",
+};
+
+/** Maps request category → best-match contractor category */
+export const REQUEST_TO_CONTRACTOR_CATEGORY: Record<RequestCategory, ContractorCategory> = {
+  plumbing: "plumber",
+  electrical: "electrician",
+  hvac: "hvac_tech",
+  appliance: "general_contractor",
+  other: "other",
 };
