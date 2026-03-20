@@ -190,9 +190,9 @@ export default function ContractorsPage() {
   }
 
   return (
-    <div className="overflow-hidden">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>Contractors</h1>
           <p className="text-sm text-charcoal-secondary mt-1">
             {contractors.length} contractor{contractors.length !== 1 ? "s" : ""}
@@ -207,7 +207,7 @@ export default function ContractorsPage() {
             }
             setShowAdd(true);
           }}
-          className="flex items-center gap-1.5 text-sm font-medium bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-xl transition-colors"
+          className="flex items-center gap-1.5 text-sm font-medium bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-xl transition-colors shrink-0 whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />Add contractor
         </button>
@@ -269,70 +269,93 @@ export default function ContractorsPage() {
                 </div>
               ) : (
                 /* Display mode */
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-charcoal">{c.first_name} {c.last_name}</p>
-                      {c.user_id && (
-                        <span className="flex items-center gap-1 text-[10px] font-semibold text-success bg-success-light px-2 py-0.5 rounded-full">
-                          <UserCheck className="w-3 h-3" />Joined
-                        </span>
-                      )}
-                      {!c.user_id && (
-                        <span className="flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning-light px-2 py-0.5 rounded-full">
-                          <Clock className="w-3 h-3" />Pending
-                        </span>
-                      )}
-                    </div>
-                    {c.company && <p className="text-sm text-charcoal-secondary">{c.company}</p>}
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <p className="font-medium text-charcoal truncate">{c.first_name} {c.last_name}</p>
+                        {c.user_id && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-success bg-success-light px-2 py-0.5 rounded-full">
+                            <UserCheck className="w-3 h-3" />Joined
+                          </span>
+                        )}
+                        {!c.user_id && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning-light px-2 py-0.5 rounded-full">
+                            <Clock className="w-3 h-3" />Pending
+                          </span>
+                        )}
+                      </div>
+                      {c.company && <p className="text-sm text-charcoal-secondary truncate">{c.company}</p>}
 
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ccat-${c.category}`}>
-                        {CONTRACTOR_CATEGORY_LABELS[c.category]}
-                      </span>
-                      {c.phone && (
-                        <a href={`tel:${c.phone}`} className="flex items-center gap-1 text-xs text-charcoal-tertiary hover:text-charcoal transition-colors">
-                          <Phone className="w-3 h-3" />{c.phone}
-                        </a>
-                      )}
-                      {c.email && (
-                        <a href={`mailto:${c.email}`} className="flex items-center gap-1 text-xs text-charcoal-tertiary hover:text-brand transition-colors">
-                          <Mail className="w-3 h-3" />{c.email}
-                        </a>
-                      )}
-                      {c.website && (
-                        <a href={c.website.startsWith("http") ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-charcoal-tertiary hover:text-brand transition-colors">
-                          <Globe className="w-3 h-3" />Website
-                        </a>
-                      )}
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ccat-${c.category}`}>
+                          {CONTRACTOR_CATEGORY_LABELS[c.category]}
+                        </span>
+                        {c.phone && (
+                          <a href={`tel:${c.phone}`} className="flex items-center gap-1 text-xs text-charcoal-tertiary hover:text-charcoal transition-colors truncate">
+                            <Phone className="w-3 h-3 shrink-0" /><span className="truncate">{c.phone}</span>
+                          </a>
+                        )}
+                        {c.email && (
+                          <a href={`mailto:${c.email}`} className="flex items-center gap-1 text-xs text-charcoal-tertiary hover:text-brand transition-colors truncate">
+                            <Mail className="w-3 h-3 shrink-0" /><span className="truncate">{c.email}</span>
+                          </a>
+                        )}
+                        {c.website && (
+                          <a href={c.website.startsWith("http") ? c.website : `https://${c.website}`} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-charcoal-tertiary hover:text-brand transition-colors">
+                            <Globe className="w-3 h-3 shrink-0" />Website
+                          </a>
+                        )}
+                      </div>
+                      {c.notes && <p className="text-xs text-charcoal-tertiary mt-2 italic truncate">{c.notes}</p>}
                     </div>
-                    {c.notes && <p className="text-xs text-charcoal-tertiary mt-2 italic">{c.notes}</p>}
+
+                    {/* Send invite — always visible on desktop */}
+                    <div className="hidden sm:flex items-center gap-1 shrink-0">
+                      {!c.user_id && c.email && (
+                        <a href={getInviteMailtoUrl(c)} title="Email invite"
+                          className="flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark bg-brand-faint px-2.5 py-1 rounded-lg transition-colors mr-1">
+                          <Send className="w-3 h-3" />Invite
+                        </a>
+                      )}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => copyInviteCode(c.id, c.invite_code)} title="Copy invite link"
+                          className="p-1.5 text-charcoal-tertiary hover:text-brand transition-colors">
+                          {copiedId === c.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => startEdit(c)} title="Edit"
+                          className="p-1.5 text-charcoal-tertiary hover:text-charcoal transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(c.id)} title="Remove"
+                          className="p-1.5 text-charcoal-tertiary hover:text-danger transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Send invite — always visible if contractor hasn't joined */}
+                  {/* Mobile action row */}
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-warm-300/30 sm:hidden">
                     {!c.user_id && c.email && (
-                      <a href={getInviteMailtoUrl(c)} title="Email invite"
-                        className="flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark bg-brand-faint px-2.5 py-1 rounded-lg transition-colors mr-1">
+                      <a href={getInviteMailtoUrl(c)}
+                        className="flex items-center gap-1 text-xs font-semibold text-brand bg-brand-faint px-2.5 py-1.5 rounded-lg">
                         <Send className="w-3 h-3" />Invite
                       </a>
                     )}
-                    {/* Copy / Edit / Remove — show on hover */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => copyInviteCode(c.id, c.invite_code)} title="Copy invite link"
-                        className="p-1.5 text-charcoal-tertiary hover:text-brand transition-colors">
-                        {copiedId === c.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                      </button>
-                      <button onClick={() => startEdit(c)} title="Edit"
-                        className="p-1.5 text-charcoal-tertiary hover:text-charcoal transition-colors">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(c.id)} title="Remove"
-                        className="p-1.5 text-charcoal-tertiary hover:text-danger transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button onClick={() => copyInviteCode(c.id, c.invite_code)}
+                      className="flex items-center gap-1 text-xs font-medium text-charcoal-secondary px-2.5 py-1.5 rounded-lg bg-warm-100">
+                      {copiedId === c.id ? <><Check className="w-3 h-3 text-success" />Copied</> : <><Copy className="w-3 h-3" />Copy link</>}
+                    </button>
+                    <button onClick={() => startEdit(c)}
+                      className="flex items-center gap-1 text-xs font-medium text-charcoal-secondary px-2.5 py-1.5 rounded-lg bg-warm-100">
+                      <Pencil className="w-3 h-3" />Edit
+                    </button>
+                    <button onClick={() => handleDelete(c.id)}
+                      className="flex items-center gap-1 text-xs font-medium text-danger px-2.5 py-1.5 rounded-lg bg-warm-100 ml-auto">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               )}
