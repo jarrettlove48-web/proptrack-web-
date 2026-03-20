@@ -1,6 +1,6 @@
 import type { PlanTier } from "./types";
 
-export const ADMIN_EMAILS = ["jarrettlove48@gmail.com"];
+export const ADMIN_EMAILS = ["jarrettlove48@gmail.com", "bullock.wesley@gmail.com"];
 
 export function isAdmin(email: string | undefined): boolean {
   return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
