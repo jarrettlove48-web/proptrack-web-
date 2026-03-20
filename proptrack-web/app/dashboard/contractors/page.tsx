@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase-browser";
 import type { Contractor, ContractorCategory } from "@/lib/types";
 import { CONTRACTOR_CATEGORY_LABELS } from "@/lib/types";
 import { canUseContractors, canAddContractor, getEffectivePlan } from "@/lib/plans";
-import { HardHat, Plus, X, Phone, Mail, Globe, Copy, Check, Trash2, Pencil, UserCheck, Clock } from "lucide-react";
+import { HardHat, Plus, X, Phone, Mail, Globe, Copy, Check, Trash2, Pencil, UserCheck, Clock, Send } from "lucide-react";
 import { useDashboard } from "../layout";
 
 const CATEGORIES: { key: ContractorCategory; label: string }[] = [
@@ -145,10 +145,27 @@ export default function ContractorsPage() {
     fetchData();
   }
 
+  function getInviteUrl(code: string) {
+    return `${window.location.origin}/contractor-invite?code=${code}`;
+  }
+
   async function copyInviteCode(id: string, code: string) {
-    await navigator.clipboard.writeText(`${window.location.origin}/contractor-invite?code=${code}`);
+    await navigator.clipboard.writeText(getInviteUrl(code));
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function getInviteMailtoUrl(c: Contractor) {
+    const inviteUrl = getInviteUrl(c.invite_code);
+    const landlordName = profile?.name || "Your landlord";
+    const subject = encodeURIComponent(`You're invited to PropTrack`);
+    const body = encodeURIComponent(
+      `Hi ${c.first_name},\n\n${landlordName} has added you as a preferred contractor on PropTrack. ` +
+      `You can view and manage your assigned maintenance jobs through your own portal.\n\n` +
+      `Click here to get started:\n${inviteUrl}\n\n` +
+      `— Sent via PropTrack`
+    );
+    return `mailto:${c.email || ""}?subject=${subject}&body=${body}`;
   }
 
   const filtered = filterCategory === "all" ? contractors : contractors.filter((c) => c.category === filterCategory);
@@ -293,19 +310,29 @@ export default function ContractorsPage() {
                     {c.notes && <p className="text-xs text-charcoal-tertiary mt-2 italic">{c.notes}</p>}
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button onClick={() => copyInviteCode(c.id, c.invite_code)} title="Copy invite link"
-                      className="p-1.5 text-charcoal-tertiary hover:text-brand transition-colors">
-                      {copiedId === c.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => startEdit(c)} title="Edit"
-                      className="p-1.5 text-charcoal-tertiary hover:text-charcoal transition-colors">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(c.id)} title="Remove"
-                      className="p-1.5 text-charcoal-tertiary hover:text-danger transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Send invite — always visible if contractor hasn't joined */}
+                    {!c.user_id && c.email && (
+                      <a href={getInviteMailtoUrl(c)} title="Email invite"
+                        className="flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark bg-brand-faint px-2.5 py-1 rounded-lg transition-colors mr-1">
+                        <Send className="w-3 h-3" />Invite
+                      </a>
+                    )}
+                    {/* Copy / Edit / Remove — show on hover */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => copyInviteCode(c.id, c.invite_code)} title="Copy invite link"
+                        className="p-1.5 text-charcoal-tertiary hover:text-brand transition-colors">
+                        {copiedId === c.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => startEdit(c)} title="Edit"
+                        className="p-1.5 text-charcoal-tertiary hover:text-charcoal transition-colors">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(c.id)} title="Remove"
+                        className="p-1.5 text-charcoal-tertiary hover:text-danger transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
