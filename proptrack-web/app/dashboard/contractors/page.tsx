@@ -214,7 +214,7 @@ export default function ContractorsPage() {
       </div>
 
       {/* Category filter */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
         <button onClick={() => setFilterCategory("all")}
           className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${filterCategory === "all" ? "bg-brand text-white" : "bg-warm-100 text-charcoal-secondary hover:bg-warm-200"}`}>
           All
