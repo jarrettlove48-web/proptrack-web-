@@ -315,7 +315,7 @@ export default function DashboardLayout({
             <button
               onClick={async () => {
                 try {
-                  await startCheckout(upgradePlan, profile?.email);
+                  await startCheckout(upgradePlan);
                 } catch { /* handled by startCheckout */ }
               }}
               className="block w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors mb-3"

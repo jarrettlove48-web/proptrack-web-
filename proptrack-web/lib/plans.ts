@@ -1,9 +1,17 @@
 import type { PlanTier } from "./types";
 
-export const ADMIN_EMAILS = ["jarrettlove48@gmail.com", "bullock.wesley@gmail.com"];
+// Server reads from env var; client falls back to defaults (cosmetic UI only)
+const DEFAULT_ADMIN_EMAILS = ["jarrettlove48@gmail.com", "bullock.wesley@gmail.com"];
+
+function getAdminEmails(): string[] {
+  if (typeof process !== "undefined" && process.env?.ADMIN_EMAILS) {
+    return process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase());
+  }
+  return DEFAULT_ADMIN_EMAILS;
+}
 
 export function isAdmin(email: string | undefined): boolean {
-  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+  return !!email && getAdminEmails().includes(email.toLowerCase());
 }
 
 export function getEffectivePlan(plan: PlanTier, email?: string, adminOverride?: PlanTier | null): PlanTier {
@@ -18,11 +26,11 @@ export const PLAN_LIMITS = {
 } as const;
 
 /** Create a Stripe Checkout session and redirect. Call from client-side. */
-export async function startCheckout(plan: "essential" | "pro", email?: string): Promise<void> {
+export async function startCheckout(plan: "essential" | "pro"): Promise<void> {
   const res = await fetch("/api/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ plan, email }),
+    body: JSON.stringify({ plan }),
   });
   const data = await res.json();
   if (data.url) {

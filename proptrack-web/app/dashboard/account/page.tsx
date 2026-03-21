@@ -224,7 +224,7 @@ export default function AccountPage() {
             onClick={async () => {
               setCheckingOut(true);
               try {
-                await startCheckout(upgradePlan, profile?.email);
+                await startCheckout(upgradePlan);
               } catch {
                 setCheckingOut(false);
               }

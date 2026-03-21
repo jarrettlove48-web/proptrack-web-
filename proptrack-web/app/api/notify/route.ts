@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
 let _resend: Resend | null = null;
 function getResend() {
@@ -21,6 +22,13 @@ interface NotifyPayload {
 
 export async function POST(request: Request) {
   try {
+    // Auth guard — must be logged in
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (!process.env.RESEND_API_KEY) {
       console.warn("RESEND_API_KEY not set, skipping email");
       return NextResponse.json({ success: true, skipped: true });

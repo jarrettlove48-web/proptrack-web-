@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
 const PRICE_IDS: Record<string, string> = {
   essential: "price_1TBNajGfsKbssCZ4OjUVIsvg",
@@ -12,7 +13,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
     }
 
-    const { plan, email } = await request.json();
+    // Auth guard — must be logged in
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { plan } = await request.json();
 
     const priceId = PRICE_IDS[plan];
     if (!priceId) {
@@ -32,14 +40,17 @@ export async function POST(request: Request) {
         success_url: `https://app.proptrack.app/dashboard/account?upgraded=${plan}`,
         cancel_url: "https://app.proptrack.app/dashboard/account",
         allow_promotion_codes: "true",
-        ...(email ? { customer_email: email } : {}),
+        customer_email: user.email || "",
+        // Link Stripe session to Supabase user for webhook reconciliation
+        client_reference_id: user.id,
+        "metadata[supabase_user_id]": user.id,
       }),
     });
 
     const session = await response.json();
 
     if (!response.ok) {
-      console.error("Stripe error:", session);
+      console.error("Stripe error:", session.error?.message || "Unknown");
       return NextResponse.json({ error: session.error?.message || "Stripe error" }, { status: 500 });
     }
 
