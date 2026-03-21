@@ -1,4 +1,3 @@
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 const PRICE_IDS: Record<string, string> = {
@@ -6,18 +5,10 @@ const PRICE_IDS: Record<string, string> = {
   pro: "price_1TBNb4GfsKbssCZ4oa3fn82v",
 };
 
-let _stripe: Stripe | null = null;
-function getStripe() {
-  if (!_stripe && process.env.STRIPE_SECRET_KEY) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  }
-  return _stripe;
-}
-
 export async function POST(request: Request) {
   try {
-    const stripe = getStripe();
-    if (!stripe) {
+    const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+    if (!STRIPE_SECRET_KEY) {
       return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
     }
 
@@ -28,23 +19,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    const successUrl = "https://app.proptrack.app/dashboard/account?upgraded=" + plan;
-    const cancelUrl = "https://app.proptrack.app/dashboard/account";
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      ...(email ? { customer_email: email } : {}),
+    const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        mode: "subscription",
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": "1",
+        success_url: `https://app.proptrack.app/dashboard/account?upgraded=${plan}`,
+        cancel_url: "https://app.proptrack.app/dashboard/account",
+        allow_promotion_codes: "true",
+        ...(email ? { customer_email: email } : {}),
+      }),
     });
 
+    const session = await response.json();
+
+    if (!response.ok) {
+      console.error("Stripe error:", session);
+      return NextResponse.json({ error: session.error?.message || "Stripe error" }, { status: 500 });
+    }
+
     return NextResponse.json({ url: session.url });
-  } catch (err: unknown) {
+  } catch (err) {
     console.error("Checkout error:", err);
-    const message = err instanceof Error ? err.message : "Failed to create checkout session";
-    const stripeCode = (err as { code?: string })?.code || undefined;
-    const stripeType = (err as { type?: string })?.type || undefined;
-    return NextResponse.json({ error: message, code: stripeCode, type: stripeType }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
