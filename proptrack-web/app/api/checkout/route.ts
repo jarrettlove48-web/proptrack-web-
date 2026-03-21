@@ -28,7 +28,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://app.proptrack.app";
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://app.proptrack.app";
+    if (!siteUrl.startsWith("http")) siteUrl = `https://${siteUrl}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
