@@ -76,27 +76,18 @@ function ContractorInviteContent() {
     setError("");
 
     // Try sign in first, then sign up
-    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+    let { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInErr) {
-      // Try sign up
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const { error: signUpErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?contractor_invite_code=${encodeURIComponent(inviteCode.trim())}`,
-        },
-      });
+      // Try sign up (immediate login — no email confirmation needed)
+      const { error: signUpErr } = await supabase.auth.signUp({ email, password });
       if (signUpErr) {
         setError(signUpErr.message);
         return;
       }
-      setError("Check your email to confirm your account, then come back here.");
-      return;
     }
 
-    // Sign in succeeded — redeem invite
+    // Redeem invite and redirect
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase.rpc("redeem_contractor_invite", { code: inviteCode.trim(), uid: user.id });
