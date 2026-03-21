@@ -28,21 +28,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://app.proptrack.app";
-    if (!siteUrl.startsWith("http")) siteUrl = `https://${siteUrl}`;
+    const successUrl = "https://app.proptrack.app/dashboard/account?upgraded=" + plan;
+    const cancelUrl = "https://app.proptrack.app/dashboard/account";
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${siteUrl}/dashboard/account?upgraded=${plan}`,
-      cancel_url: `${siteUrl}/dashboard/account`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       ...(email ? { customer_email: email } : {}),
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Checkout error:", err);
     const message = err instanceof Error ? err.message : "Failed to create checkout session";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const stripeCode = (err as { code?: string })?.code || undefined;
+    const stripeType = (err as { type?: string })?.type || undefined;
+    return NextResponse.json({ error: message, code: stripeCode, type: stripeType }, { status: 500 });
   }
 }
