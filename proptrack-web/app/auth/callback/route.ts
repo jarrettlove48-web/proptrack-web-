@@ -6,7 +6,14 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const role = searchParams.get("role"); // "landlord" or "tenant"
   const inviteCode = searchParams.get("invite_code"); // from tenant invite flow
-  const contractorInviteCode = searchParams.get("contractor_invite_code"); // from contractor invite flow
+
+  // Check query param first, fall back to cookie (OAuth redirects can strip query params)
+  let contractorInviteCode = searchParams.get("contractor_invite_code");
+  if (!contractorInviteCode) {
+    const cookies = request.headers.get("cookie") || "";
+    const match = cookies.match(/contractor_invite_code=([^;]+)/);
+    if (match) contractorInviteCode = decodeURIComponent(match[1]);
+  }
 
   if (code) {
     const supabase = await createClient();
@@ -32,7 +39,9 @@ export async function GET(request: Request) {
           });
 
           if (!redeemErr) {
-            return NextResponse.redirect(`${origin}/contractor`);
+            const res = NextResponse.redirect(`${origin}/contractor`);
+            res.cookies.set("contractor_invite_code", "", { path: "/", maxAge: 0 });
+            return res;
           }
 
           return NextResponse.redirect(

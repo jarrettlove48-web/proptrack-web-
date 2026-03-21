@@ -57,6 +57,9 @@ function ContractorInviteContent() {
 
   async function handleGoogleSignIn() {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    // Store invite code in cookie so the callback can read it server-side
+    // (query params can get stripped during OAuth redirects)
+    document.cookie = `contractor_invite_code=${encodeURIComponent(inviteCode.trim())}; path=/; max-age=600; SameSite=Lax`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
