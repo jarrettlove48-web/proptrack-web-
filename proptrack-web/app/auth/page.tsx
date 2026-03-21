@@ -88,6 +88,27 @@ function AuthForm() {
         if (signInError) throw signInError;
       }
 
+      // Route based on actual profile role, not the toggle
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", authUser.id)
+          .single();
+
+        if (profileData?.role === "contractor") {
+          router.push("/contractor");
+          router.refresh();
+          return;
+        }
+        if (profileData?.role === "tenant") {
+          router.push("/tenant");
+          router.refresh();
+          return;
+        }
+      }
+
       router.push(nextPath);
       router.refresh();
     } catch (err: unknown) {
