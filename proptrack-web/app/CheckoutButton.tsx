@@ -13,21 +13,27 @@ export default function CheckoutButton({
   children: React.ReactNode;
 }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   return (
-    <button
-      onClick={async () => {
-        setLoading(true);
-        try {
-          await startCheckout(plan);
-        } catch {
-          setLoading(false);
-        }
-      }}
-      disabled={loading}
-      className={`${className} disabled:opacity-60`}
-    >
-      {loading ? "Redirecting..." : children}
-    </button>
+    <>
+      <button
+        onClick={async () => {
+          setLoading(true);
+          setError("");
+          try {
+            await startCheckout(plan);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Checkout failed");
+            setLoading(false);
+          }
+        }}
+        disabled={loading}
+        className={`${className} disabled:opacity-60`}
+      >
+        {loading ? "Redirecting..." : children}
+      </button>
+      {error && <p className="text-xs text-red-500 mt-2 text-center">{error}</p>}
+    </>
   );
 }
