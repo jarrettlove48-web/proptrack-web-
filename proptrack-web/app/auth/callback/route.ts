@@ -39,6 +39,12 @@ export async function GET(request: Request) {
           });
 
           if (!redeemErr) {
+            // Explicitly set profile role to contractor (RPC may not do this)
+            await supabase
+              .from("profiles")
+              .update({ role: "contractor" })
+              .eq("id", user.id);
+
             const res = NextResponse.redirect(`${origin}/contractor`);
             res.cookies.set("contractor_invite_code", "", { path: "/", maxAge: 0 });
             return res;

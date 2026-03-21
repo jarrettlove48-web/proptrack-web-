@@ -12,7 +12,7 @@ import {
   Copy, Check, Send, UserPlus, Plus, X, Calendar, Pencil, Trash2,
 } from "lucide-react";
 
-type EditableUnitField = "tenant_name" | "tenant_email" | "tenant_phone" | "lease_end_date";
+type EditableUnitField = "label" | "tenant_name" | "tenant_email" | "tenant_phone" | "lease_end_date";
 type EditableTenantField = "name" | "email" | "phone" | "move_in_date" | "lease_start" | "lease_end";
 type EditablePropertyField = "name" | "address";
 
@@ -413,7 +413,24 @@ export default function PropertyDetailPage() {
                       <Home className={`w-5 h-5 ${unit.is_occupied ? "text-brand" : "text-charcoal-tertiary"}`} strokeWidth={1.8} />
                     </div>
                     <div>
-                      <p className="font-semibold text-charcoal">{unit.label}</p>
+                      {editingUnit === unit.id && editingUnitField === "label" ? (
+                        <div className="flex items-center gap-2">
+                          <input type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                            placeholder="Unit label" autoFocus
+                            className="font-semibold text-charcoal bg-transparent outline-none border-b border-brand min-w-0 w-32"
+                            onKeyDown={(e) => { if (e.key === "Enter") saveUnitEdit(); if (e.key === "Escape") cancelUnitEdit(); }} />
+                          <button onClick={saveUnitEdit} disabled={savingEdit} className="text-brand hover:text-brand-dark"><Check className="w-3.5 h-3.5" /></button>
+                          <button onClick={cancelUnitEdit} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group">
+                          <p className="font-semibold text-charcoal">{unit.label}</p>
+                          <button onClick={() => startEditUnit(unit.id, "label", unit.label)}
+                            className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-60 hover:!opacity-100">
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
                       <p className="text-xs text-charcoal-tertiary">{unit.is_occupied ? "Occupied" : "Vacant"}</p>
                     </div>
                   </div>

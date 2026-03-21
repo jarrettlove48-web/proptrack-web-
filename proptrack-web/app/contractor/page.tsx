@@ -16,6 +16,12 @@ import {
   MessageCircle,
   Send,
   X,
+  Pencil,
+  Check,
+  Phone,
+  Mail,
+  Briefcase,
+  Globe,
 } from "lucide-react";
 
 export default function ContractorPortalPage() {
@@ -29,6 +35,24 @@ export default function ContractorPortalPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("");
+
+  // Profile editing
+  const [editingField, setEditingField] = useState<"phone" | "email" | "company" | "website" | null>(null);
+  const [editFieldValue, setEditFieldValue] = useState("");
+  const [savingField, setSavingField] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+
+  function startEditField(field: "phone" | "email" | "company" | "website", value: string) {
+    setEditingField(field); setEditFieldValue(value);
+  }
+  function cancelEditField() { setEditingField(null); setEditFieldValue(""); }
+  async function saveFieldEdit() {
+    if (!editingField || !contractor) return;
+    setSavingField(true);
+    await supabase.from("contractors").update({ [editingField]: editFieldValue.trim() || null }).eq("id", contractor.id);
+    setEditingField(null); setEditFieldValue(""); setSavingField(false);
+    fetchData();
+  }
 
   // Messages
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
@@ -252,6 +276,48 @@ export default function ContractorPortalPage() {
             <p className="text-xs text-charcoal-tertiary mt-1">Total</p>
           </div>
         </div>
+
+        {/* My Profile — expandable */}
+        <button onClick={() => setShowProfile(!showProfile)}
+          className="w-full flex items-center justify-between bg-white rounded-2xl border border-warm-300/50 p-4 mb-4 text-left hover:border-brand/30 transition-colors">
+          <div className="flex items-center gap-2">
+            <HardHat className="w-4 h-4 text-brand" />
+            <span className="text-sm font-semibold text-charcoal">My Profile</span>
+          </div>
+          <span className="text-xs text-charcoal-tertiary">{showProfile ? "Hide" : "Edit"}</span>
+        </button>
+        {showProfile && contractor && (
+          <div className="bg-white rounded-2xl border border-warm-300/50 p-5 mb-6 space-y-3">
+            {([
+              { field: "phone" as const, icon: <Phone className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />, label: "Phone", value: contractor.phone },
+              { field: "email" as const, icon: <Mail className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />, label: "Email", value: contractor.email },
+              { field: "company" as const, icon: <Briefcase className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />, label: "Company", value: contractor.company },
+              { field: "website" as const, icon: <Globe className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />, label: "Website", value: contractor.website },
+            ]).map(({ field, icon, label, value }) => (
+              editingField === field ? (
+                <div key={field} className="flex items-center gap-2">
+                  {icon}
+                  <input type={field === "email" ? "email" : field === "website" ? "url" : "text"}
+                    value={editFieldValue} onChange={(e) => setEditFieldValue(e.target.value)}
+                    placeholder={label} autoFocus
+                    className="flex-1 text-sm text-charcoal bg-transparent outline-none border-b border-brand min-w-0"
+                    onKeyDown={(e) => { if (e.key === "Enter") saveFieldEdit(); if (e.key === "Escape") cancelEditField(); }} />
+                  <button onClick={saveFieldEdit} disabled={savingField} className="text-brand hover:text-brand-dark"><Check className="w-3.5 h-3.5" /></button>
+                  <button onClick={cancelEditField} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-3.5 h-3.5" /></button>
+                </div>
+              ) : (
+                <div key={field} className="flex items-center gap-2 text-sm text-charcoal-secondary group">
+                  {icon}
+                  <span className="flex-1 min-w-0 truncate">{value || <span className="text-charcoal-tertiary italic text-xs">No {label.toLowerCase()}</span>}</span>
+                  <button onClick={() => startEditField(field, value || "")}
+                    className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-60 hover:!opacity-100">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+              )
+            ))}
+          </div>
+        )}
 
         {requests.length === 0 ? (
           <div className="bg-white rounded-2xl border border-warm-300/50 p-8 text-center">

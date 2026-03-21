@@ -26,6 +26,10 @@ import {
   X,
   Camera,
   Image as ImageIcon,
+  Pencil,
+  Check,
+  User,
+  Phone,
 } from "lucide-react";
 
 const CATEGORIES: { key: RequestCategory; label: string }[] = [
@@ -65,6 +69,25 @@ export default function TenantPortalPage() {
   const [newMessage, setNewMessage] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
 
+  // Profile editing
+  const [userPhone, setUserPhone] = useState("");
+  const [editingProfileField, setEditingProfileField] = useState<"name" | "phone" | null>(null);
+  const [editProfileValue, setEditProfileValue] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  function startEditProfile(field: "name" | "phone", value: string) {
+    setEditingProfileField(field); setEditProfileValue(value);
+  }
+  function cancelEditProfile() { setEditingProfileField(null); setEditProfileValue(""); }
+  async function saveProfileEdit() {
+    if (!editingProfileField || !userId) return;
+    setSavingProfile(true);
+    await supabase.from("profiles").update({ [editingProfileField]: editProfileValue.trim() }).eq("id", userId);
+    if (editingProfileField === "name") setUserName(editProfileValue.trim() || "Tenant");
+    if (editingProfileField === "phone") setUserPhone(editProfileValue.trim());
+    setEditingProfileField(null); setEditProfileValue(""); setSavingProfile(false);
+  }
+
   // Expanded requests
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -81,7 +104,7 @@ export default function TenantPortalPage() {
     // Get profile name
     const { data: profileData } = await supabase
       .from("profiles")
-      .select("name, role")
+      .select("name, role, phone")
       .eq("id", user.id)
       .single();
 
@@ -91,6 +114,7 @@ export default function TenantPortalPage() {
         return;
       }
       setUserName(profileData.name || "Tenant");
+      setUserPhone(profileData.phone || "");
     }
 
     // Get tenant's unit
@@ -385,6 +409,53 @@ export default function TenantPortalPage() {
               {requests.filter((r) => r.status !== "resolved").length} active request
               {requests.filter((r) => r.status !== "resolved").length !== 1 ? "s" : ""}
             </span>
+          </div>
+
+          {/* My Info — editable name & phone */}
+          <div className="mt-4 pt-3 border-t border-warm-300/40 space-y-2">
+            <p className="text-xs font-semibold text-charcoal-tertiary uppercase tracking-wider mb-2">My Info</p>
+            {/* Name */}
+            {editingProfileField === "name" ? (
+              <div className="flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />
+                <input type="text" value={editProfileValue} onChange={(e) => setEditProfileValue(e.target.value)}
+                  placeholder="Your name" autoFocus
+                  className="flex-1 text-sm text-charcoal bg-transparent outline-none border-b border-brand min-w-0"
+                  onKeyDown={(e) => { if (e.key === "Enter") saveProfileEdit(); if (e.key === "Escape") cancelEditProfile(); }} />
+                <button onClick={saveProfileEdit} disabled={savingProfile} className="text-brand hover:text-brand-dark"><Check className="w-3.5 h-3.5" /></button>
+                <button onClick={cancelEditProfile} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-charcoal-secondary group">
+                <User className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />
+                <span className="flex-1 min-w-0 truncate">{userName}</span>
+                <button onClick={() => startEditProfile("name", userName)}
+                  className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-60 hover:!opacity-100">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {/* Phone */}
+            {editingProfileField === "phone" ? (
+              <div className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />
+                <input type="tel" value={editProfileValue} onChange={(e) => setEditProfileValue(e.target.value)}
+                  placeholder="Phone number" autoFocus
+                  className="flex-1 text-sm text-charcoal bg-transparent outline-none border-b border-brand min-w-0"
+                  onKeyDown={(e) => { if (e.key === "Enter") saveProfileEdit(); if (e.key === "Escape") cancelEditProfile(); }} />
+                <button onClick={saveProfileEdit} disabled={savingProfile} className="text-brand hover:text-brand-dark"><Check className="w-3.5 h-3.5" /></button>
+                <button onClick={cancelEditProfile} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-charcoal-secondary group">
+                <Phone className="w-3.5 h-3.5 text-charcoal-tertiary shrink-0" />
+                <span className="flex-1 min-w-0 truncate">{userPhone || <span className="text-charcoal-tertiary italic text-xs">No phone set</span>}</span>
+                <button onClick={() => startEditProfile("phone", userPhone)}
+                  className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-60 hover:!opacity-100">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { MaintenanceRequest, RequestStatus, RequestCategory, Property, Unit, Contractor, RequestMedia } from "@/lib/types";
 import { STATUS_LABELS, CATEGORY_LABELS, CONTRACTOR_CATEGORY_LABELS, CONTRACTOR_STATUS_LABELS, REQUEST_TO_CONTRACTOR_CATEGORY } from "@/lib/types";
-import { Wrench, Filter, Plus, X, Building2, Calendar, HardHat, UserCheck, ChevronDown, Clock } from "lucide-react";
+import { Wrench, Filter, Plus, X, Building2, Calendar, HardHat, UserCheck, ChevronDown, Clock, Pencil, Check } from "lucide-react";
 import { useDashboard } from "../layout";
 import { sendNotification } from "@/lib/notify";
 
@@ -27,6 +27,24 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
   const [assigningId, setAssigningId] = useState<string | null>(null);
+
+  // Inline editing
+  const [editingReqId, setEditingReqId] = useState<string | null>(null);
+  const [editingReqField, setEditingReqField] = useState<"description" | "category" | null>(null);
+  const [editReqValue, setEditReqValue] = useState("");
+  const [savingReqEdit, setSavingReqEdit] = useState(false);
+
+  function startEditReq(id: string, field: "description" | "category", value: string) {
+    setEditingReqId(id); setEditingReqField(field); setEditReqValue(value);
+  }
+  function cancelEditReq() { setEditingReqId(null); setEditingReqField(null); setEditReqValue(""); }
+  async function saveReqEdit() {
+    if (!editingReqId || !editingReqField) return;
+    setSavingReqEdit(true);
+    await supabase.from("maintenance_requests").update({ [editingReqField]: editReqValue.trim(), updated_at: new Date().toISOString() }).eq("id", editingReqId);
+    setEditingReqId(null); setEditingReqField(null); setEditReqValue(""); setSavingReqEdit(false);
+    fetchData();
+  }
 
   // Add request modal
   const [showAdd, setShowAdd] = useState(false);
@@ -227,9 +245,43 @@ export default function RequestsPage() {
               <div key={req.id} className="bg-surface rounded-2xl border border-warm-300/50 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <p className="font-medium text-charcoal">{req.description}</p>
+                    {editingReqId === req.id && editingReqField === "description" ? (
+                      <div className="flex items-center gap-2">
+                        <input type="text" value={editReqValue} onChange={(e) => setEditReqValue(e.target.value)}
+                          placeholder="Description" autoFocus
+                          className="flex-1 font-medium text-charcoal bg-transparent outline-none border-b border-brand min-w-0"
+                          onKeyDown={(e) => { if (e.key === "Enter") saveReqEdit(); if (e.key === "Escape") cancelEditReq(); }} />
+                        <button onClick={saveReqEdit} disabled={savingReqEdit} className="text-brand hover:text-brand-dark"><Check className="w-3.5 h-3.5" /></button>
+                        <button onClick={cancelEditReq} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 group">
+                        <p className="font-medium text-charcoal">{req.description}</p>
+                        <button onClick={() => startEditReq(req.id, "description", req.description)}
+                          className="text-charcoal-tertiary hover:text-brand transition-colors opacity-0 group-hover:opacity-60 hover:!opacity-100 shrink-0">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category}`}>{CATEGORY_LABELS[req.category]}</span>
+                      {editingReqId === req.id && editingReqField === "category" ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {CATEGORIES.map((c) => (
+                            <button key={c.key} type="button"
+                              onClick={() => { setEditReqValue(c.key); }}
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${editReqValue === c.key ? "bg-brand text-white" : "bg-warm-100 text-charcoal-secondary hover:bg-warm-200"}`}>
+                              {c.label}
+                            </button>
+                          ))}
+                          <button onClick={saveReqEdit} disabled={savingReqEdit} className="text-brand hover:text-brand-dark ml-1"><Check className="w-3.5 h-3.5" /></button>
+                          <button onClick={cancelEditReq} className="text-charcoal-tertiary hover:text-charcoal"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => startEditReq(req.id, "category", req.category)}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg cat-${req.category} hover:ring-1 hover:ring-brand/30 transition-all cursor-pointer`}>
+                          {CATEGORY_LABELS[req.category]}
+                        </button>
+                      )}
                       <span className="text-xs text-charcoal-tertiary">{req.property_name} · {req.unit_label}</span>
                       {req.tenant_name && <span className="text-xs text-charcoal-tertiary">by {req.tenant_name}</span>}
                     </div>

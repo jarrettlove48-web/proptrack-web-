@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { MaintenanceRequest, Property, Unit, CalendarEvent as CustomCalendarEvent, CalendarEventType } from "@/lib/types";
 import { CATEGORY_LABELS, STATUS_LABELS, EVENT_TYPE_LABELS } from "@/lib/types";
-import { ChevronLeft, ChevronRight, CalendarDays, ExternalLink, Plus, X, Download, Building2, Home } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, ExternalLink, Plus, X, Download, Building2, Home, Pencil, Trash2 } from "lucide-react";
 
 interface CalendarEntry {
   id: string;
@@ -115,8 +115,9 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(formatDate(today.getFullYear(), today.getMonth(), today.getDate()));
 
-  // Add event modal
+  // Add/edit event modal
   const [showAddEvent, setShowAddEvent] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [evtTitle, setEvtTitle] = useState("");
   const [evtDate, setEvtDate] = useState("");
   const [evtType, setEvtType] = useState<CalendarEventType>("maintenance");
@@ -232,6 +233,7 @@ export default function CalendarPage() {
   }
 
   function openAddEvent(date?: string) {
+    setEditingEventId(null);
     setEvtTitle("");
     setEvtDate(date || selectedDate || formatDate(year, month, 1));
     setEvtType("maintenance");
@@ -240,6 +242,24 @@ export default function CalendarPage() {
     setEvtDescription("");
     setSaveError("");
     setShowAddEvent(true);
+  }
+
+  function openEditEvent(evt: CustomCalendarEvent) {
+    setEditingEventId(evt.id);
+    setEvtTitle(evt.title);
+    setEvtDate(evt.event_date);
+    setEvtType(evt.event_type);
+    setEvtPropertyId(evt.property_id || "");
+    setEvtUnitId(evt.unit_id || "");
+    setEvtDescription(evt.description || "");
+    setSaveError("");
+    setShowAddEvent(true);
+  }
+
+  async function handleDeleteEvent(id: string) {
+    if (!confirm("Delete this event?")) return;
+    await supabase.from("calendar_events").delete().eq("id", id);
+    fetchData();
   }
 
   async function handleAddEvent(e: React.FormEvent) {
@@ -251,23 +271,27 @@ export default function CalendarPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); setSaveError("You must be logged in."); return; }
 
-    const { error } = await supabase.from("calendar_events").insert({
-      owner_id: user.id,
+    const payload = {
       title: evtTitle.trim(),
       event_date: evtDate,
       event_type: evtType,
       property_id: evtPropertyId || null,
       unit_id: evtUnitId || null,
       description: evtDescription.trim() || null,
-    });
+    };
+
+    const { error } = editingEventId
+      ? await supabase.from("calendar_events").update(payload).eq("id", editingEventId)
+      : await supabase.from("calendar_events").insert({ ...payload, owner_id: user.id });
 
     if (error) {
       setSaving(false);
-      setSaveError(error.message || "Failed to add event.");
+      setSaveError(error.message || "Failed to save event.");
       return;
     }
 
     setShowAddEvent(false);
+    setEditingEventId(null);
     setSaving(false);
     setSaveError("");
     fetchData();
@@ -401,6 +425,24 @@ export default function CalendarPage() {
                       <p className="text-xs text-charcoal-tertiary mt-1 truncate">{ev.subtitle}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {ev.customEvent && (
+                        <>
+                          <button
+                            onClick={() => openEditEvent(ev.customEvent!)}
+                            className="p-1.5 rounded-lg text-charcoal-tertiary hover:text-brand hover:bg-warm-100 transition-colors"
+                            title="Edit event"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEvent(ev.customEvent!.id)}
+                            className="p-1.5 rounded-lg text-charcoal-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Delete event"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                       <a
                         href={googleCalendarUrl(ev)}
                         target="_blank"
@@ -431,7 +473,7 @@ export default function CalendarPage() {
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
           <div className="bg-surface rounded-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-charcoal">Add event</h3>
+              <h3 className="text-lg font-bold text-charcoal">{editingEventId ? "Edit event" : "Add event"}</h3>
               <button onClick={() => setShowAddEvent(false)} className="p-1 text-charcoal-tertiary hover:text-charcoal"><X className="w-5 h-5" /></button>
             </div>
 
@@ -496,7 +538,7 @@ export default function CalendarPage() {
 
               <button type="submit" disabled={saving || !evtTitle.trim() || !evtDate}
                 className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60">
-                {saving ? "Adding..." : "Add event"}
+                {saving ? "Saving..." : editingEventId ? "Save changes" : "Add event"}
               </button>
             </form>
           </div>

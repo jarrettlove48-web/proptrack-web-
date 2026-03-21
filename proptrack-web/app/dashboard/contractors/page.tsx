@@ -44,6 +44,8 @@ export default function ContractorsPage() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editCompany, setEditCompany] = useState("");
+  const [editCategory, setEditCategory] = useState<ContractorCategory>("plumber");
+  const [editWebsite, setEditWebsite] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -126,6 +128,8 @@ export default function ContractorsPage() {
     setEditFirstName(c.first_name);
     setEditLastName(c.last_name);
     setEditCompany(c.company || "");
+    setEditCategory(c.category);
+    setEditWebsite(c.website || "");
     setEditPhone(c.phone || "");
     setEditEmail(c.email || "");
     setEditNotes(c.notes || "");
@@ -136,6 +140,8 @@ export default function ContractorsPage() {
       first_name: editFirstName.trim(),
       last_name: editLastName.trim(),
       company: editCompany.trim() || null,
+      category: editCategory,
+      website: editWebsite.trim() || null,
       phone: editPhone.trim() || null,
       email: editEmail.trim() || null,
       notes: editNotes.trim() || null,
@@ -254,6 +260,16 @@ export default function ContractorsPage() {
                   </div>
                   <input value={editCompany} onChange={(e) => setEditCompany(e.target.value)}
                     className="w-full border border-warm-300 rounded-xl px-3 py-2 text-sm bg-warm-white outline-none focus:border-brand" placeholder="Company (optional)" />
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button key={cat.key} type="button" onClick={() => setEditCategory(cat.key)}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${editCategory === cat.key ? "bg-brand text-white" : "bg-warm-100 text-charcoal-secondary hover:bg-warm-200"}`}>
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input value={editWebsite} onChange={(e) => setEditWebsite(e.target.value)}
+                    className="w-full border border-warm-300 rounded-xl px-3 py-2 text-sm bg-warm-white outline-none focus:border-brand" placeholder="Website (optional)" />
                   <div className="grid grid-cols-2 gap-3">
                     <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
                       className="border border-warm-300 rounded-xl px-3 py-2 text-sm bg-warm-white outline-none focus:border-brand" placeholder="Phone" />

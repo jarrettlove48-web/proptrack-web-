@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
-import { Building2, HardHat, ArrowRight, AlertTriangle } from "lucide-react";
+import { Building2, HardHat, ArrowRight, AlertTriangle, KeyRound } from "lucide-react";
 
 export default function ContractorInvitePage() {
   return (
@@ -27,6 +27,9 @@ function ContractorInviteContent() {
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState<{ company: string | null; owner_name: string | null } | null>(null);
   const [error, setError] = useState(errorFromUrl);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [showReset, setShowReset] = useState(false);
 
   // Auto-verify if code came from URL
   useEffect(() => {
@@ -87,12 +90,30 @@ function ContractorInviteContent() {
       }
     }
 
-    // Redeem invite and redirect
+    // Redeem invite, set role, and redirect
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.rpc("redeem_contractor_invite", { code: inviteCode.trim(), uid: user.id });
+      const { error: redeemErr } = await supabase.rpc("redeem_contractor_invite", { code: inviteCode.trim(), uid: user.id });
+      if (redeemErr) {
+        setError(redeemErr.message || "Failed to redeem invite.");
+        return;
+      }
+      // Explicitly set profile role to contractor (RPC may not do this)
+      await supabase.from("profiles").update({ role: "contractor" }).eq("id", user.id);
       window.location.href = "/contractor";
     }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+    setError("");
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${siteUrl}/contractor-invite${inviteCode ? `?code=${encodeURIComponent(inviteCode)}` : ""}`,
+    });
+    if (resetErr) { setError(resetErr.message); return; }
+    setResetSent(true);
   }
 
   return (
@@ -176,16 +197,50 @@ function ContractorInviteContent() {
                 <div className="flex-1 border-t border-warm-300/50" />
               </div>
 
-              <form onSubmit={handleEmailSignIn} className="space-y-3">
-                <input name="email" type="email" placeholder="Email" required
-                  className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" />
-                <input name="password" type="password" placeholder="Password" required minLength={6}
-                  className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" />
-                <button type="submit"
-                  className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors">
-                  Sign in / Sign up
-                </button>
-              </form>
+              {showReset ? (
+                /* Password reset form */
+                resetSent ? (
+                  <div className="text-center py-2">
+                    <KeyRound className="w-6 h-6 text-brand mx-auto mb-2" />
+                    <p className="text-sm font-medium text-charcoal mb-1">Reset email sent!</p>
+                    <p className="text-xs text-charcoal-secondary mb-3">Check your inbox for a password reset link.</p>
+                    <button onClick={() => { setShowReset(false); setResetSent(false); }}
+                      className="text-xs font-medium text-brand hover:text-brand-dark">Back to sign in</button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleResetPassword} className="space-y-3">
+                    <p className="text-sm text-charcoal-secondary">Enter your email to receive a password reset link.</p>
+                    <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="Email" required autoFocus
+                      className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" />
+                    <button type="submit"
+                      className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors">
+                      Send reset link
+                    </button>
+                    <button type="button" onClick={() => setShowReset(false)}
+                      className="w-full text-xs font-medium text-charcoal-tertiary hover:text-charcoal transition-colors">
+                      Back to sign in
+                    </button>
+                  </form>
+                )
+              ) : (
+                <>
+                  <form onSubmit={handleEmailSignIn} className="space-y-3">
+                    <input name="email" type="email" placeholder="Email" required
+                      className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" />
+                    <input name="password" type="password" placeholder="Password" required minLength={6}
+                      className="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-charcoal bg-warm-white outline-none focus:border-brand transition-colors placeholder:text-charcoal-tertiary" />
+                    <button type="submit"
+                      className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors">
+                      Sign in / Sign up
+                    </button>
+                  </form>
+                  <button onClick={() => setShowReset(true)}
+                    className="w-full text-xs font-medium text-charcoal-tertiary hover:text-brand transition-colors mt-3">
+                    Forgot password?
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
