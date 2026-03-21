@@ -17,12 +17,20 @@ export const PLAN_LIMITS = {
   pro: { maxProperties: Infinity, maxUnits: Infinity, expenseTracking: true, maxContractors: Infinity },
 } as const;
 
-export const STRIPE_URLS = {
-  essential:
-    "https://checkout.stripe.com/c/pay/cs_live_b1AHg4Pv6dxfzUzqQ9KPsREMOa1LfTrocOvqaLQr4yRzWNXs1PPUUG6QQ2#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSd2cGd2ZndsdXFsamtQa2x0cGBrYHZ2QGtkZ2lgYSc%2FY2RpdmApJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRWb3dSdEJjdk5ndnZGXzE2fFc1dnZ3YU9CTjVKcHRsQEhOa21MPWsxS2NCVnxGaVdccVUyMVJDcUpCVG5gY0tiXX1saHJXZl9ndEBkMj1TMF19al9dTU01NXdrUjNjV0pjJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJjVmPTcyMycpJ2lkfGpwcVF8dWAnPydocGlxbFpscWBoJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl",
-  pro:
-    "https://checkout.stripe.com/c/pay/cs_live_b11PEdb0Es6vjZ3CgKhMoUik3fyHyg4k7RbZgXDLpzE1VFyc80iBwZdxWa#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSd2cGd2ZndsdXFsamtQa2x0cGBrYHZ2QGtkZ2lgYSc%2FY2RpdmApJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRWb3dSdEJjdk5ndnZGXzE2fFc1dnZ3YU9CTjVKcHRsQEhOa21MPWsxS2NCVnxGaVdccVUyMVJDcUpCVG5gY0tiXX1saHJXZl9ndEBkMj1TMF19al9dTU01NXdrUjNjV0pjJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJjVmPTcyMycpJ2lkfGpwcVF8dWAnPydocGlxbFpscWBoJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl",
-} as const;
+/** Create a Stripe Checkout session and redirect. Call from client-side. */
+export async function startCheckout(plan: "essential" | "pro", email?: string): Promise<void> {
+  const res = await fetch("/api/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan, email }),
+  });
+  const data = await res.json();
+  if (data.url) {
+    window.location.href = data.url;
+  } else {
+    throw new Error(data.error || "Failed to start checkout");
+  }
+}
 
 export const PLAN_LABELS: Record<PlanTier, string> = {
   starter: "Starter (Free)",
@@ -50,8 +58,8 @@ export function canAddContractor(plan: PlanTier, currentCount: number): boolean 
   return currentCount < PLAN_LIMITS[plan].maxContractors;
 }
 
-export function getUpgradeUrl(plan: PlanTier): string | null {
-  if (plan === "starter") return STRIPE_URLS.essential;
-  if (plan === "essential") return STRIPE_URLS.pro;
+export function getUpgradePlan(plan: PlanTier): "essential" | "pro" | null {
+  if (plan === "starter") return "essential";
+  if (plan === "essential") return "pro";
   return null;
 }

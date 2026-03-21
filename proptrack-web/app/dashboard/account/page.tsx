@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { useDashboard } from "../layout";
-import { getUpgradeUrl, PLAN_LABELS } from "@/lib/plans";
+import { getUpgradePlan, startCheckout, PLAN_LABELS } from "@/lib/plans";
 import { isAdmin, getEffectivePlan } from "@/lib/plans";
 import type { PlanTier } from "@/lib/types";
 import { User, Mail, Phone, Shield, Sun, Moon, Pencil, Check, ExternalLink, ArrowUpRight, FlaskConical } from "lucide-react";
@@ -17,7 +17,8 @@ export default function AccountPage() {
   const [saving, setSaving] = useState(false);
 
   const plan = (profile?.plan || "starter") as keyof typeof PLAN_LABELS;
-  const upgradeUrl = getUpgradeUrl(plan);
+  const upgradePlan = getUpgradePlan(plan);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   function startEditing(field: "name" | "phone") {
     setEditingField(field);
@@ -218,18 +219,24 @@ export default function AccountPage() {
             <p className="text-sm font-medium text-charcoal">{PLAN_LABELS[plan]}</p>
           </div>
         </div>
-        {upgradeUrl && (
-          <a
-            href={upgradeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+        {upgradePlan && (
+          <button
+            onClick={async () => {
+              setCheckingOut(true);
+              try {
+                await startCheckout(upgradePlan, profile?.email);
+              } catch {
+                setCheckingOut(false);
+              }
+            }}
+            disabled={checkingOut}
+            className="flex items-center justify-center gap-2 w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm disabled:opacity-60"
           >
             <ArrowUpRight className="w-4 h-4" />
-            Upgrade to {plan === "starter" ? "Essential" : "Pro"}
-          </a>
+            {checkingOut ? "Redirecting to Stripe..." : `Upgrade to ${upgradePlan === "essential" ? "Essential" : "Pro"}`}
+          </button>
         )}
-        {!upgradeUrl && (
+        {!upgradePlan && (
           <p className="text-sm text-charcoal-tertiary">You are on the highest plan. Thank you for your support!</p>
         )}
       </div>

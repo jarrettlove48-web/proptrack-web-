@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, createContext, useContext } from "rea
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import type { Profile, PlanTier } from "@/lib/types";
-import { getUpgradeUrl, PLAN_LIMITS, getEffectivePlan, isAdmin } from "@/lib/plans";
+import { getUpgradePlan, startCheckout, PLAN_LIMITS, getEffectivePlan, isAdmin } from "@/lib/plans";
 import Link from "next/link";
 import {
   Building2,
@@ -150,7 +150,7 @@ export default function DashboardLayout({
 
   const rawPlan = (profile?.plan || "starter") as PlanTier;
   const plan = getEffectivePlan(rawPlan, profile?.email, adminSimulatedPlan);
-  const upgradeUrl = getUpgradeUrl(plan);
+  const upgradePlan = getUpgradePlan(plan);
   const limits = PLAN_LIMITS[plan];
   const adminMode = isAdmin(profile?.email);
 
@@ -302,7 +302,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Upgrade Modal */}
-      {upgradeFeature && upgradeUrl && (
+      {upgradeFeature && upgradePlan && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
           <div className="bg-surface rounded-2xl w-full max-w-sm p-6 text-center">
             <div className="w-12 h-12 rounded-2xl bg-brand-faint flex items-center justify-center mx-auto mb-4">
@@ -312,14 +312,16 @@ export default function DashboardLayout({
             <p className="text-sm text-charcoal-secondary mb-6">
               {upgradeMessages[upgradeFeature] || "Upgrade to unlock this feature."}
             </p>
-            <a
-              href={upgradeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={async () => {
+                try {
+                  await startCheckout(upgradePlan, profile?.email);
+                } catch { /* handled by startCheckout */ }
+              }}
               className="block w-full bg-brand hover:bg-brand-dark text-white font-semibold py-3 rounded-xl transition-colors mb-3"
             >
               Upgrade now
-            </a>
+            </button>
             <button
               onClick={() => setUpgradeFeature(null)}
               className="text-sm text-charcoal-secondary hover:text-charcoal transition-colors"

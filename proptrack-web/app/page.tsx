@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import Link from "next/link";
 import GoogleSignIn from "./GoogleSignIn";
+import CheckoutButton from "./CheckoutButton";
 import {
   Building2,
   Wrench,
@@ -13,12 +14,6 @@ import {
   Check,
 } from "lucide-react";
 
-const STRIPE_ESSENTIAL =
-  "https://checkout.stripe.com/c/pay/cs_live_b1AHg4Pv6dxfzUzqQ9KPsREMOa1LfTrocOvqaLQr4yRzWNXs1PPUUG6QQ2#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSd2cGd2ZndsdXFsamtQa2x0cGBrYHZ2QGtkZ2lgYSc%2FY2RpdmApJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRWb3dSdEJjdk5ndnZGXzE2fFc1dnZ3YU9CTjVKcHRsQEhOa21MPWsxS2NCVnxGaVdccVUyMVJDcUpCVG5gY0tiXX1saHJXZl9ndEBkMj1TMF19al9dTU01NXdrUjNjV0pjJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJjVmPTcyMycpJ2lkfGpwcVF8dWAnPydocGlxbFpscWBoJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl";
-
-const STRIPE_PRO =
-  "https://checkout.stripe.com/c/pay/cs_live_b11PEdb0Es6vjZ3CgKhMoUik3fyHyg4k7RbZgXDLpzE1VFyc80iBwZdxWa#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSd2cGd2ZndsdXFsamtQa2x0cGBrYHZ2QGtkZ2lgYSc%2FY2RpdmApJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRWb3dSdEJjdk5ndnZGXzE2fFc1dnZ3YU9CTjVKcHRsQEhOa21MPWsxS2NCVnxGaVdccVUyMVJDcUpCVG5gY0tiXX1saHJXZl9ndEBkMj1TMF19al9dTU01NXdrUjNjV0pjJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJjVmPTcyMycpJ2lkfGpwcVF8dWAnPydocGlxbFpscWBoJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl";
-
 const plans = [
   {
     name: "Starter",
@@ -27,7 +22,7 @@ const plans = [
     units: "1 property · 1 unit",
     cta: "Get started free",
     href: "/auth?mode=signup",
-    external: false,
+    stripePlan: null as "essential" | "pro" | null,
     featured: false,
     features: [
       "Maintenance request system",
@@ -42,8 +37,8 @@ const plans = [
     period: "/mo",
     units: "Up to 3 properties · 9 units",
     cta: "Start Essential",
-    href: STRIPE_ESSENTIAL,
-    external: true,
+    href: null as string | null,
+    stripePlan: "essential" as "essential" | "pro" | null,
     featured: true,
     features: [
       "Everything in Starter",
@@ -60,8 +55,8 @@ const plans = [
     period: "/mo",
     units: "Up to 10 properties · unlimited units",
     cta: "Start Pro",
-    href: STRIPE_PRO,
-    external: true,
+    href: null as string | null,
+    stripePlan: "pro" as "essential" | "pro" | null,
     featured: false,
     features: [
       "Everything in Essential",
@@ -287,22 +282,20 @@ export default async function HomePage() {
                   ))}
                 </ul>
 
-                {plan.external ? (
-                  <a
-                    href={plan.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`block text-center text-sm font-semibold mt-6 py-2.5 rounded-xl transition-colors ${
+                {plan.stripePlan ? (
+                  <CheckoutButton
+                    plan={plan.stripePlan}
+                    className={`block w-full text-center text-sm font-semibold mt-6 py-2.5 rounded-xl transition-colors ${
                       plan.featured
                         ? "bg-brand text-white hover:bg-brand-dark"
                         : "bg-warm-100 text-charcoal hover:bg-warm-200"
                     }`}
                   >
                     {plan.cta}
-                  </a>
+                  </CheckoutButton>
                 ) : (
                   <Link
-                    href={plan.href}
+                    href={plan.href || "/auth?mode=signup"}
                     className={`block text-center text-sm font-semibold mt-6 py-2.5 rounded-xl transition-colors ${
                       plan.featured
                         ? "bg-brand text-white hover:bg-brand-dark"
